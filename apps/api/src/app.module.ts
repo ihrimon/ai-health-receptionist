@@ -1,0 +1,30 @@
+import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+import configuration from './config/configuration';
+import { DatabaseModule } from './database/database.module';
+import { QueueModule } from './queue/queue.module';
+import { HealthModule } from './health/health.module';
+import { BookingsModule } from './modules/bookings/bookings.module';
+import { ConversationsModule } from './modules/conversations/conversations.module';
+import { CallSessionsModule } from './modules/call-sessions/call-sessions.module';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      load: [configuration],
+      envFilePath: ['../../.env', '.env'],
+    }),
+    DatabaseModule,
+    QueueModule,
+    HealthModule,
+    BookingsModule,
+    ConversationsModule,
+    CallSessionsModule,
+  ],
+  controllers: [AppController],
+  providers: [AppService],
+})
+export class AppModule {}

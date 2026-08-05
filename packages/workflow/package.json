@@ -1,0 +1,6 @@
+{
+  "name": "@brainstack/workflow",
+  "version": "0.1.0",
+  "private": true,
+  "description": "BullMQ job definitions for the booking workflow (Phase 5 implementation target)"
+}

@@ -1,0 +1,6 @@
+{
+  "name": "@brainstack/ai",
+  "version": "0.1.0",
+  "private": true,
+  "description": "LLM prompts and conversation logic for the booking agent (Phase 4 implementation target)"
+}
