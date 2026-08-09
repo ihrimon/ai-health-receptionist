@@ -1,9 +1,7 @@
 # BrainStack Booking Agent
 
-AI voice booking agent for BrainStack. See [`implementation.md`](implementation.md)
-for the full product/implementation plan, and [`docs/`](docs/) for
-developer guides (NestJS architecture, SQL/database queries, and the
-Phase 1 progress update — in Bangla).
+AI voice booking agent for BrainStack. See [`docs/implementation.md`](docs/implementation.md)
+for the full product/implementation plan.
 
 ## Project structure
 
