@@ -1,0 +1,37 @@
+import type { FunctionDeclaration } from '@google/genai';
+
+/**
+ * Mirrors CreateBookingDto's fields/required set. The model calls this
+ * exactly once, after the CONFIRM step in
+ * packages/ai/prompts/booking-conversation.md.
+ */
+export const RECORD_BOOKING_TOOL: FunctionDeclaration = {
+  name: 'record_booking',
+  description:
+    'Save the completed booking once the caller has confirmed every detail in the CONFIRM step. Call this exactly once, only after confirmation, and include a short confirmation sentence alongside the call.',
+  parametersJsonSchema: {
+    type: 'object',
+    properties: {
+      name: { type: 'string', description: "Caller's full name" },
+      phone: { type: 'string', description: 'Callback phone number' },
+      email: { type: 'string', description: 'Email address' },
+      company: { type: 'string', description: 'Company name (optional)' },
+      service: { type: 'string', description: 'Requested service' },
+      budget: { type: 'string', description: 'Budget range (optional)' },
+      preferredDate: {
+        type: 'string',
+        description: 'Preferred date, YYYY-MM-DD',
+      },
+      preferredTime: { type: 'string', description: 'Preferred time' },
+      notes: { type: 'string', description: 'Additional notes (optional)' },
+    },
+    required: [
+      'name',
+      'phone',
+      'email',
+      'service',
+      'preferredDate',
+      'preferredTime',
+    ],
+  },
+};

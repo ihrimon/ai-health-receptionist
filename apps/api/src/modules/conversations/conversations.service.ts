@@ -37,4 +37,15 @@ export class ConversationsService {
   findByCallSid(callSid: string): Promise<Conversation | null> {
     return this.conversationsRepository.findOne({ where: { callSid } });
   }
+
+  async appendTurn(
+    id: string,
+    partial: Partial<
+      Pick<Conversation, 'transcript' | 'bookingId' | 'summary'>
+    >,
+  ): Promise<Conversation> {
+    const conversation = await this.findOne(id);
+    Object.assign(conversation, partial);
+    return this.conversationsRepository.save(conversation);
+  }
 }

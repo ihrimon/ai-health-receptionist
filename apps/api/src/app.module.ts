@@ -9,6 +9,8 @@ import { HealthModule } from './health/health.module';
 import { BookingsModule } from './modules/bookings/bookings.module';
 import { ConversationsModule } from './modules/conversations/conversations.module';
 import { CallSessionsModule } from './modules/call-sessions/call-sessions.module';
+import { VoiceModule } from './modules/voice/voice.module';
+import { ChatModule } from './modules/chat/chat.module';
 
 @Module({
   imports: [
@@ -23,6 +25,8 @@ import { CallSessionsModule } from './modules/call-sessions/call-sessions.module
     BookingsModule,
     ConversationsModule,
     CallSessionsModule,
+    VoiceModule,
+    ChatModule,
   ],
   controllers: [AppController],
   providers: [AppService],
