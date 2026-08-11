@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { BookingsService } from '../bookings/bookings.service';
 import { ConversationsService } from '../conversations/conversations.service';
 import { ChatService } from './chat.service';
-import { GeminiChatClient } from './gemini-chat.client';
+import { GroqChatClient } from './groq-chat.client';
 
 const validBookingInput = {
   name: 'Jane Doe',
@@ -15,7 +15,7 @@ const validBookingInput = {
 
 describe('ChatService', () => {
   let service: ChatService;
-  let geminiChatClient: { sendTurn: jest.Mock };
+  let groqChatClient: { sendTurn: jest.Mock };
   let conversationsService: {
     findByCallSid: jest.Mock;
     create: jest.Mock;
@@ -24,7 +24,7 @@ describe('ChatService', () => {
   let bookingsService: { create: jest.Mock };
 
   beforeEach(async () => {
-    geminiChatClient = { sendTurn: jest.fn() };
+    groqChatClient = { sendTurn: jest.fn() };
     conversationsService = {
       findByCallSid: jest.fn(),
       create: jest.fn(),
@@ -35,7 +35,7 @@ describe('ChatService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ChatService,
-        { provide: GeminiChatClient, useValue: geminiChatClient },
+        { provide: GroqChatClient, useValue: groqChatClient },
         { provide: ConversationsService, useValue: conversationsService },
         { provide: BookingsService, useValue: bookingsService },
       ],
@@ -56,7 +56,7 @@ describe('ChatService', () => {
         });
       },
     );
-    geminiChatClient.sendTurn.mockResolvedValue({
+    groqChatClient.sendTurn.mockResolvedValue({
       text: 'Hi! What can I help you book today?',
     });
 
@@ -75,7 +75,7 @@ describe('ChatService', () => {
       transcript: [{ role: 'user', text: 'earlier message' }],
       bookingId: undefined,
     });
-    geminiChatClient.sendTurn.mockResolvedValue({ text: 'Got it.' });
+    groqChatClient.sendTurn.mockResolvedValue({ text: 'Got it.' });
 
     await service.sendMessage({
       sessionId: 'session-1',
@@ -86,7 +86,7 @@ describe('ChatService', () => {
       'chat-session-1',
     );
     expect(conversationsService.create).not.toHaveBeenCalled();
-    expect(geminiChatClient.sendTurn).toHaveBeenCalledWith([
+    expect(groqChatClient.sendTurn).toHaveBeenCalledWith([
       { role: 'user', text: 'earlier message' },
       { role: 'user', text: 'Hello again' },
     ]);
@@ -98,7 +98,7 @@ describe('ChatService', () => {
       transcript: null,
       bookingId: undefined,
     });
-    geminiChatClient.sendTurn.mockResolvedValue({
+    groqChatClient.sendTurn.mockResolvedValue({
       text: "Let me read that back to confirm — you're all booked!",
       toolInput: validBookingInput,
     });
@@ -121,7 +121,7 @@ describe('ChatService', () => {
       transcript: null,
       bookingId: undefined,
     });
-    geminiChatClient.sendTurn.mockResolvedValue({
+    groqChatClient.sendTurn.mockResolvedValue({
       text: '',
       toolInput: { name: 'Jane Doe' }, // missing required fields
     });

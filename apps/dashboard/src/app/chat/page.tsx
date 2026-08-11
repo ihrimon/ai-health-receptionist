@@ -68,7 +68,7 @@ export default function ChatPage() {
       ]);
     } catch {
       setError(
-        "Couldn't reach the booking agent. Is the API running and is GEMINI_API_KEY set?",
+        "Couldn't reach the booking agent. Is the API running and is GROQ_API_KEY set?",
       );
     } finally {
       setLoading(false);

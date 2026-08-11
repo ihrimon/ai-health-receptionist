@@ -6,7 +6,7 @@ implementation target).
 `prompts/booking-conversation.md` is the canonical booking conversation
 script — written in Phase 1, and reused as-is (read directly off disk at
 runtime, not imported as TypeScript) by the chat implementation in
-`apps/api/src/modules/chat`. The actual orchestration code (Gemini/Claude
+`apps/api/src/modules/chat`. The actual orchestration code (Groq/Claude
 client, tool definitions, chat service) lives in `apps/api` for now, not
 here — same reasoning as `@brainstack/workflow` and `@brainstack/voice`:
 no `@brainstack/*` workspace package has a proven consumer yet, and

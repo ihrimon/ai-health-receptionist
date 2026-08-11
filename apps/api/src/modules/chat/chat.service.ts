@@ -6,7 +6,7 @@ import { BookingsService } from '../bookings/bookings.service';
 import { CreateBookingDto } from '../bookings/dto/create-booking.dto';
 import { ConversationsService } from '../conversations/conversations.service';
 import { SendChatMessageDto } from './dto/send-chat-message.dto';
-import { ChatTurn, GeminiChatClient } from './gemini-chat.client';
+import { ChatTurn, GroqChatClient } from './groq-chat.client';
 
 const CHAT_SESSION_PREFIX = 'chat-';
 
@@ -22,7 +22,7 @@ export class ChatService {
   private readonly logger = new Logger(ChatService.name);
 
   constructor(
-    private readonly geminiChatClient: GeminiChatClient,
+    private readonly groqChatClient: GroqChatClient,
     private readonly conversationsService: ConversationsService,
     private readonly bookingsService: BookingsService,
   ) {}
@@ -46,7 +46,7 @@ export class ChatService {
       { role: 'user', text: dto.message },
     ];
 
-    const result = await this.geminiChatClient.sendTurn(transcript);
+    const result = await this.groqChatClient.sendTurn(transcript);
 
     let bookingCreated = false;
     let booking: { id: string } | undefined;
