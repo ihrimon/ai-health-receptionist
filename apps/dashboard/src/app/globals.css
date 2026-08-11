@@ -24,3 +24,68 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* WhatsApp-style chat wallpaper: faint repeating dot texture */
+.chat-wallpaper {
+  background-color: #e5ddd5;
+  background-image: radial-gradient(
+    rgba(0, 0, 0, 0.04) 1px,
+    transparent 1px
+  );
+  background-size: 18px 18px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .chat-wallpaper {
+    background-color: #0b141a;
+    background-image: radial-gradient(
+      rgba(255, 255, 255, 0.035) 1px,
+      transparent 1px
+    );
+  }
+}
+
+/* Message bubble tails */
+.bubble-tail-out::after,
+.bubble-tail-in::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  width: 0;
+  height: 0;
+  border-top: 8px solid transparent;
+}
+
+.bubble-tail-out::after {
+  right: -7px;
+  border-left: 8px solid #d9fdd3;
+}
+
+.bubble-tail-in::after {
+  left: -7px;
+  border-right: 8px solid #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  .bubble-tail-out::after {
+    border-left-color: #005c4b;
+  }
+
+  .bubble-tail-in::after {
+    border-right-color: #202c33;
+  }
+}
+
+@keyframes rec-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+
+.rec-dot {
+  animation: rec-pulse 1.2s ease-in-out infinite;
+}
