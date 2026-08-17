@@ -2,7 +2,9 @@ name: brainstack-booking-agent
 
 services:
   postgres:
-    image: postgres:16-alpine
+    # pgvector/pgvector:pg16 = postgres:16 + the pgvector extension baked in,
+    # needed for the RAG knowledge base (packages/database/migrations/002_knowledge_base.sql).
+    image: pgvector/pgvector:pg16
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-brainstack}

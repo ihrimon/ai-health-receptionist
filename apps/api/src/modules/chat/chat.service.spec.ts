@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BookingsService } from '../bookings/bookings.service';
 import { ConversationsService } from '../conversations/conversations.service';
+import { KnowledgeService } from '../knowledge/knowledge.service';
 import { ChatService } from './chat.service';
 import { GroqChatClient } from './groq-chat.client';
 
@@ -22,6 +23,7 @@ describe('ChatService', () => {
     appendTurn: jest.Mock;
   };
   let bookingsService: { create: jest.Mock };
+  let knowledgeService: { search: jest.Mock };
 
   beforeEach(async () => {
     groqChatClient = { sendTurn: jest.fn() };
@@ -31,6 +33,7 @@ describe('ChatService', () => {
       appendTurn: jest.fn(),
     };
     bookingsService = { create: jest.fn() };
+    knowledgeService = { search: jest.fn().mockResolvedValue([]) };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -38,6 +41,7 @@ describe('ChatService', () => {
         { provide: GroqChatClient, useValue: groqChatClient },
         { provide: ConversationsService, useValue: conversationsService },
         { provide: BookingsService, useValue: bookingsService },
+        { provide: KnowledgeService, useValue: knowledgeService },
       ],
     }).compile();
 
@@ -86,10 +90,51 @@ describe('ChatService', () => {
       'chat-session-1',
     );
     expect(conversationsService.create).not.toHaveBeenCalled();
-    expect(groqChatClient.sendTurn).toHaveBeenCalledWith([
-      { role: 'user', text: 'earlier message' },
-      { role: 'user', text: 'Hello again' },
+    expect(groqChatClient.sendTurn).toHaveBeenCalledWith(
+      [
+        { role: 'user', text: 'earlier message' },
+        { role: 'user', text: 'Hello again' },
+      ],
+      [],
+    );
+  });
+
+  it('passes retrieved knowledge chunks through to the LLM client', async () => {
+    conversationsService.create.mockResolvedValue({
+      id: 'conv-1',
+      transcript: null,
+      bookingId: undefined,
+    });
+    knowledgeService.search.mockResolvedValue([
+      { source: 'faq.md', content: 'We are open 9-5.', similarity: 0.9 },
     ]);
+    groqChatClient.sendTurn.mockResolvedValue({ text: 'We are open 9-5.' });
+
+    await service.sendMessage({ message: 'What are your hours?' });
+
+    expect(knowledgeService.search).toHaveBeenCalledWith(
+      'What are your hours?',
+    );
+    expect(groqChatClient.sendTurn).toHaveBeenCalledWith(expect.any(Array), [
+      'We are open 9-5.',
+    ]);
+  });
+
+  it('falls back to no reference chunks if knowledge retrieval fails', async () => {
+    conversationsService.create.mockResolvedValue({
+      id: 'conv-1',
+      transcript: null,
+      bookingId: undefined,
+    });
+    knowledgeService.search.mockRejectedValue(
+      new Error('relation "knowledge_chunks" does not exist'),
+    );
+    groqChatClient.sendTurn.mockResolvedValue({ text: 'Hi there!' });
+
+    const result = await service.sendMessage({ message: 'Hello' });
+
+    expect(result.reply).toBe('Hi there!');
+    expect(groqChatClient.sendTurn).toHaveBeenCalledWith(expect.any(Array), []);
   });
 
   it('creates and links a booking when the tool call input is valid', async () => {

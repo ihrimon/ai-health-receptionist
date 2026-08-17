@@ -5,6 +5,7 @@ import { validate } from 'class-validator';
 import { BookingsService } from '../bookings/bookings.service';
 import { CreateBookingDto } from '../bookings/dto/create-booking.dto';
 import { ConversationsService } from '../conversations/conversations.service';
+import { KnowledgeService } from '../knowledge/knowledge.service';
 import { SendChatMessageDto } from './dto/send-chat-message.dto';
 import { ChatTurn, GroqChatClient } from './groq-chat.client';
 
@@ -25,6 +26,7 @@ export class ChatService {
     private readonly groqChatClient: GroqChatClient,
     private readonly conversationsService: ConversationsService,
     private readonly bookingsService: BookingsService,
+    private readonly knowledgeService: KnowledgeService,
   ) {}
 
   async sendMessage(dto: SendChatMessageDto): Promise<ChatReply> {
@@ -46,7 +48,11 @@ export class ChatService {
       { role: 'user', text: dto.message },
     ];
 
-    const result = await this.groqChatClient.sendTurn(transcript);
+    const referenceChunks = await this.getReferenceChunks(dto.message);
+    const result = await this.groqChatClient.sendTurn(
+      transcript,
+      referenceChunks,
+    );
 
     let bookingCreated = false;
     let booking: { id: string } | undefined;
@@ -93,5 +99,20 @@ export class ChatService {
 
   private toCallSid(sessionId: string): string {
     return `${CHAT_SESSION_PREFIX}${sessionId}`;
+  }
+
+  private async getReferenceChunks(message: string): Promise<string[]> {
+    try {
+      const matches = await this.knowledgeService.search(message);
+      return matches.map((match) => match.content);
+    } catch (err) {
+      // Knowledge base scaffold is ahead of real content/migration being
+      // applied everywhere yet (see packages/ai/knowledge/faq.md) — chat
+      // should keep working without RAG context rather than fail the turn.
+      this.logger.warn(
+        `Knowledge retrieval unavailable: ${(err as Error).message}`,
+      );
+      return [];
+    }
   }
 }

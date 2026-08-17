@@ -1,3 +1,14 @@
 packages:
   - "apps/*"
   - "packages/*"
+
+# sharp/protobufjs need their native postinstall build step — they're
+# transitive deps of @xenova/transformers (RAG embeddings), pulled in even
+# though this project only uses the text pipeline, not vision. pnpm skips
+# build scripts by default for security; explicitly allowlisting these two
+# (non-interactively, unlike `pnpm approve-builds`) is required or
+# @xenova/transformers fails at runtime with "Cannot find module
+# '../build/Release/sharp-win32-x64.node'".
+onlyBuiltDependencies:
+  - sharp
+  - protobufjs

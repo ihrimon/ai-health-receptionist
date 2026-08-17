@@ -20,4 +20,10 @@ export default () => ({
     apiKey: process.env.GROQ_API_KEY ?? '',
     model: process.env.GROQ_MODEL ?? 'llama-3.3-70b-versatile',
   },
+
+  knowledge: {
+    embeddingModel:
+      process.env.KNOWLEDGE_EMBEDDING_MODEL ?? 'Xenova/all-MiniLM-L6-v2',
+    topK: parseInt(process.env.KNOWLEDGE_TOP_K ?? '3', 10),
+  },
 });
