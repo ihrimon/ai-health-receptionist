@@ -1,7 +1,13 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Booking, CallSession, Conversation } from './entities';
+import {
+  Booking,
+  CallSession,
+  Conversation,
+  Provider,
+  ProviderAvailability,
+} from './entities';
 
 @Module({
   imports: [
@@ -14,7 +20,13 @@ import { Booking, CallSession, Conversation } from './entities';
         username: config.get<string>('database.username'),
         password: config.get<string>('database.password'),
         database: config.get<string>('database.name'),
-        entities: [Booking, Conversation, CallSession],
+        entities: [
+          Booking,
+          Conversation,
+          CallSession,
+          Provider,
+          ProviderAvailability,
+        ],
         // Phase 1 (dev only): auto-sync schema from entities.
         // Replace with the SQL migrations in packages/database once the schema stabilizes.
         synchronize: config.get<string>('nodeEnv') !== 'production',
