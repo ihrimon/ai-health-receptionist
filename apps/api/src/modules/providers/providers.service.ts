@@ -41,4 +41,23 @@ export class ProvidersService {
     const provider = await this.findOne(id);
     await this.providersRepository.remove(provider);
   }
+
+  /**
+   * Case-insensitive EXACT name match (no substring matching — avoids
+   * ambiguous partial matches), scoped to active providers offering the
+   * given service. Returns 0/1/n matches rather than throwing, since the
+   * caller (chat tool loop) needs to distinguish "not found" from
+   * "ambiguous" and react conversationally, not via an HTTP exception.
+   */
+  findActiveByExactNameAndService(
+    name: string,
+    service: string,
+  ): Promise<Provider[]> {
+    return this.providersRepository
+      .createQueryBuilder('provider')
+      .where('LOWER(provider.name) = LOWER(:name)', { name })
+      .andWhere('provider.service = :service', { service })
+      .andWhere('provider.isActive = true')
+      .getMany();
+  }
 }

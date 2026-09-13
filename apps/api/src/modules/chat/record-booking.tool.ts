@@ -26,6 +26,11 @@ export const RECORD_BOOKING_TOOL: Groq.Chat.Completions.ChatCompletionTool = {
         },
         preferredTime: { type: 'string', description: 'Preferred time' },
         notes: { type: 'string', description: 'Additional notes (optional)' },
+        providerId: {
+          type: 'string',
+          description:
+            'The providerId returned by find_available_slots for the chosen slot — never invent this value.',
+        },
       },
       required: [
         'name',
@@ -34,6 +39,7 @@ export const RECORD_BOOKING_TOOL: Groq.Chat.Completions.ChatCompletionTool = {
         'service',
         'preferredDate',
         'preferredTime',
+        'providerId',
       ],
     },
   },

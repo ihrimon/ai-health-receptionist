@@ -1,9 +1,11 @@
 import {
   IsDateString,
   IsEmail,
+  IsISO8601,
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsUUID,
 } from 'class-validator';
 
 export class CreateBookingDto {
@@ -41,4 +43,18 @@ export class CreateBookingDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @IsOptional()
+  @IsUUID()
+  providerId?: string;
+
+  // Server-computed (from providerId + preferredDate/preferredTime) — never
+  // accepted directly from the chat LLM, see ChatService.sendMessage().
+  @IsOptional()
+  @IsISO8601()
+  startsAt?: string;
+
+  @IsOptional()
+  @IsISO8601()
+  endsAt?: string;
 }

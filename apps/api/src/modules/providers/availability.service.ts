@@ -11,6 +11,7 @@ import {
   Provider,
   ProviderAvailability,
 } from '../../database/entities';
+import { GoogleCalendarService } from '../google-calendar/google-calendar.service';
 import {
   excludeOverlapping,
   excludePastSlots,
@@ -34,6 +35,7 @@ export class AvailabilityService {
     private readonly availabilityRepository: Repository<ProviderAvailability>,
     @InjectRepository(Booking)
     private readonly bookingsRepository: Repository<Booking>,
+    private readonly googleCalendarService: GoogleCalendarService,
   ) {}
 
   async computeAvailableSlots(
@@ -127,8 +129,11 @@ export class AvailabilityService {
       )
       .map((booking) => ({ start: booking.startsAt!, end: booking.endsAt! }));
 
-    // Phase C replaces this stub with a real Google Calendar freebusy call.
-    const googleBusyRanges: TimeRange[] = [];
+    const googleBusyRanges = await this.googleCalendarService.getFreeBusy(
+      provider.id,
+      rangeStart,
+      rangeEnd,
+    );
 
     let slots = generateCandidateSlots(
       rangeStart,

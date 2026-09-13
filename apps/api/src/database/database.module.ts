@@ -7,6 +7,7 @@ import {
   Conversation,
   Provider,
   ProviderAvailability,
+  ProviderGoogleAccount,
 } from './entities';
 
 @Module({
@@ -26,6 +27,7 @@ import {
           CallSession,
           Provider,
           ProviderAvailability,
+          ProviderGoogleAccount,
         ],
         // Phase 1 (dev only): auto-sync schema from entities.
         // Replace with the SQL migrations in packages/database once the schema stabilizes.

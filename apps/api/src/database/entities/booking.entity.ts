@@ -72,6 +72,9 @@ export class Booking {
   @Column({ name: 'ends_at', type: 'timestamptz', nullable: true })
   endsAt?: Date;
 
+  @Column({ name: 'google_event_id', nullable: true })
+  googleEventId?: string;
+
   @Column({ type: 'text', nullable: true })
   notes?: string;
 

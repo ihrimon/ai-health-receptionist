@@ -18,12 +18,18 @@ export default () => ({
 
   groq: {
     apiKey: process.env.GROQ_API_KEY ?? '',
-    model: process.env.GROQ_MODEL ?? 'llama-3.3-70b-versatile',
+    model: process.env.GROQ_MODEL ?? 'openai/gpt-oss-20b',
   },
 
   knowledge: {
     embeddingModel:
       process.env.KNOWLEDGE_EMBEDDING_MODEL ?? 'Xenova/all-MiniLM-L6-v2',
     topK: parseInt(process.env.KNOWLEDGE_TOP_K ?? '3', 10),
+  },
+
+  google: {
+    clientId: process.env.GOOGLE_CLIENT_ID ?? '',
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? '',
+    redirectUri: process.env.GOOGLE_REDIRECT_URI ?? '',
   },
 });
