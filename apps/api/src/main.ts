@@ -22,7 +22,7 @@ async function bootstrap() {
   await app.listen(port);
 
   console.log(
-    `🚀 BrainStack Booking Agent API running on http://localhost:${port}`,
+    `🚀 BrainStack AI Receptionist API running on http://localhost:${port}`,
   );
 }
 void bootstrap();

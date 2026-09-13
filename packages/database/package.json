@@ -2,7 +2,7 @@
   "name": "@brainstack/database",
   "version": "0.1.0",
   "private": true,
-  "description": "PostgreSQL schema, SQL migrations, and the migration runner for BrainStack Booking Agent",
+  "description": "PostgreSQL schema, SQL migrations, and the migration runner for BrainStack AI Receptionist",
   "scripts": {
     "migrate": "node scripts/migrate.js"
   },

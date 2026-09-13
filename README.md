@@ -1,4 +1,4 @@
-# BrainStack Booking Agent
+# BrainStack AI Receptionist
 
 AI voice booking agent for BrainStack. See [`docs/implementation.md`](docs/implementation.md)
 for the full product/implementation plan.

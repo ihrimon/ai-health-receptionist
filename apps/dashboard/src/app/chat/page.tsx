@@ -8,6 +8,7 @@ import {
   type FormEvent,
 } from "react";
 import Link from "next/link";
+import { Headset } from "lucide-react";
 
 function subscribeNever() {
   return () => {};
@@ -296,7 +297,7 @@ export default function ChatPage() {
   }
 
   return (
-    <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <header className="flex items-center gap-3 bg-[#008069] px-4 py-3 text-white shadow-sm dark:bg-[#1f2c34]">
         <Link
           href="/"
@@ -305,12 +306,12 @@ export default function ChatPage() {
         >
           <ArrowLeftIcon />
         </Link>
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/20 text-sm font-semibold">
-          BA
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/20">
+          <Headset className="size-5" />
         </div>
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-base font-medium">
-            BrainStack Booking Agent
+            BrainStack AI Receptionist
           </h1>
           <p className="truncate text-xs text-white/80">
             {loading ? "typing…" : "online"}
@@ -446,7 +447,7 @@ export default function ChatPage() {
           )}
         </div>
       </div>
-    </main>
+    </div>
   );
 }
 
