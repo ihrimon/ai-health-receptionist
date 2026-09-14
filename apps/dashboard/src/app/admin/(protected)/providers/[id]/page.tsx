@@ -105,7 +105,7 @@ export default function ProviderDetailPage() {
     setBusy(true);
     try {
       await apiFetch(`/providers/${id}`, { method: "DELETE" });
-      router.push("/providers");
+      router.push("/admin/providers");
     } catch (err) {
       setError((err as Error).message);
       setBusy(false);
@@ -134,7 +134,7 @@ export default function ProviderDetailPage() {
         <PageHeader
           title={provider.name}
           subtitle={`${provider.service} · ${provider.slotDurationMinutes} min slots · ${provider.timezone}`}
-          backHref="/providers"
+          backHref="/admin/providers"
         />
 
         {error && <p className="text-sm text-destructive">{error}</p>}

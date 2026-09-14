@@ -5,6 +5,7 @@ import {
   Provider,
   ProviderAvailability,
 } from '../../database/entities';
+import { AuthModule } from '../auth/auth.module';
 import { GoogleCalendarModule } from '../google-calendar/google-calendar.module';
 import { AvailabilityController } from './availability.controller';
 import { AvailabilityService } from './availability.service';
@@ -17,6 +18,7 @@ import { ProvidersService } from './providers.service';
   imports: [
     TypeOrmModule.forFeature([Provider, ProviderAvailability, Booking]),
     GoogleCalendarModule,
+    AuthModule,
   ],
   controllers: [
     ProvidersController,

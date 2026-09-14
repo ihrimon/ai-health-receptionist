@@ -1,8 +1,18 @@
-import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
+import { AdminAuthGuard } from '../auth/admin-auth.guard';
 import { ProviderAvailabilityService } from './provider-availability.service';
 import { CreateProviderAvailabilityDto } from './dto/create-provider-availability.dto';
 
 @Controller('providers/:providerId/availability')
+@UseGuards(AdminAuthGuard)
 export class ProviderAvailabilityController {
   constructor(
     private readonly availabilityService: ProviderAvailabilityService,

@@ -1,9 +1,19 @@
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
+import { AdminAuthGuard } from '../auth/admin-auth.guard';
 import { CallSessionsService } from './call-sessions.service';
 import { CreateCallSessionDto } from './dto/create-call-session.dto';
 import { UpdateCallSessionDto } from './dto/update-call-session.dto';
 
 @Controller('call-sessions')
+@UseGuards(AdminAuthGuard)
 export class CallSessionsController {
   constructor(private readonly callSessionsService: CallSessionsService) {}
 

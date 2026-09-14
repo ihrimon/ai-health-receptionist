@@ -223,7 +223,7 @@ export default function BookingsPage() {
                     <TableRow key={b.id}>
                       <TableCell>
                         <Link
-                          href={`/bookings/${b.id}`}
+                          href={`/admin/bookings/${b.id}`}
                           className="font-medium hover:underline"
                         >
                           {b.name}

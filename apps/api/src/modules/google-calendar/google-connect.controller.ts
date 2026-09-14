@@ -5,10 +5,13 @@ import {
   HttpCode,
   Param,
   Redirect,
+  UseGuards,
 } from '@nestjs/common';
+import { AdminAuthGuard } from '../auth/admin-auth.guard';
 import { GoogleCalendarService } from './google-calendar.service';
 
 @Controller('providers/:providerId/google')
+@UseGuards(AdminAuthGuard)
 export class GoogleConnectController {
   constructor(private readonly googleCalendarService: GoogleCalendarService) {}
 

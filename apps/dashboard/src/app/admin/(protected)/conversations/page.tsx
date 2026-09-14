@@ -42,7 +42,7 @@ export default function ConversationsPage() {
           {conversations && conversations.length === 0 && (
             <p className="text-sm text-muted-foreground">
               No conversations yet — try the{" "}
-              <Link href="/chat" className="underline">
+              <Link href="/" className="underline">
                 chat page
               </Link>
               .
@@ -53,7 +53,7 @@ export default function ConversationsPage() {
             {conversations?.map((c) => (
               <Link
                 key={c.id}
-                href={`/conversations/${c.id}`}
+                href={`/admin/conversations/${c.id}`}
                 className="rounded-lg border p-3 transition-colors hover:border-foreground/30"
               >
                 <div className="flex items-center justify-between gap-2">

@@ -78,7 +78,7 @@ export default function BookingDetailPage() {
     setBusy(true);
     try {
       await apiFetch(`/bookings/${id}`, { method: "DELETE" });
-      router.push("/bookings");
+      router.push("/admin/bookings");
     } catch (err) {
       setError((err as Error).message);
       setBusy(false);
@@ -107,7 +107,7 @@ export default function BookingDetailPage() {
         <PageHeader
           title={booking.name}
           subtitle={`Booking #${booking.id.slice(0, 8)}`}
-          backHref="/bookings"
+          backHref="/admin/bookings"
           actions={<StatusBadge status={booking.status} />}
         />
 

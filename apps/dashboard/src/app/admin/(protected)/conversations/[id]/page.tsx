@@ -33,14 +33,17 @@ export default function ConversationDetailPage() {
         <PageHeader
           title="Conversation"
           subtitle={formatDateTime(conversation.createdAt)}
-          backHref="/conversations"
+          backHref="/admin/conversations"
         />
       </div>
 
       <div className="chat-wallpaper min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-8">
         <div className="mx-auto flex max-w-2xl flex-col gap-3">
           {conversation.bookingId && (
-            <Link href={`/bookings/${conversation.bookingId}`} className="w-fit">
+            <Link
+              href={`/admin/bookings/${conversation.bookingId}`}
+              className="w-fit"
+            >
               <Badge
                 variant="outline"
                 className="border-transparent bg-green-100 text-green-700 hover:underline dark:bg-green-900/40 dark:text-green-300"

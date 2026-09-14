@@ -8,6 +8,7 @@ export async function apiFetch<T>(
 ): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
     headers: { "Content-Type": "application/json" },
+    credentials: "include",
     ...init,
   });
 

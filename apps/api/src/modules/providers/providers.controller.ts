@@ -6,12 +6,15 @@ import {
   Param,
   Patch,
   Post,
+  UseGuards,
 } from '@nestjs/common';
+import { AdminAuthGuard } from '../auth/admin-auth.guard';
 import { ProvidersService } from './providers.service';
 import { CreateProviderDto } from './dto/create-provider.dto';
 import { UpdateProviderDto } from './dto/update-provider.dto';
 
 @Controller('providers')
+@UseGuards(AdminAuthGuard)
 export class ProvidersController {
   constructor(private readonly providersService: ProvidersService) {}
 

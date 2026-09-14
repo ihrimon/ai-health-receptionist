@@ -1,12 +1,17 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Booking } from '../../database/entities';
+import { AuthModule } from '../auth/auth.module';
 import { GoogleCalendarModule } from '../google-calendar/google-calendar.module';
 import { BookingsController } from './bookings.controller';
 import { BookingsService } from './bookings.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Booking]), GoogleCalendarModule],
+  imports: [
+    TypeOrmModule.forFeature([Booking]),
+    GoogleCalendarModule,
+    AuthModule,
+  ],
   controllers: [BookingsController],
   providers: [BookingsService],
   exports: [BookingsService],

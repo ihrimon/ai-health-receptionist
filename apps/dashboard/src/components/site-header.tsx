@@ -6,15 +6,14 @@ import { Separator } from "@/components/ui/separator";
 import { ModeToggle } from "@/components/mode-toggle";
 
 const TITLES: { prefix: string; title: string }[] = [
-  { prefix: "/chat", title: "Chat" },
-  { prefix: "/bookings", title: "Bookings" },
-  { prefix: "/providers", title: "Providers" },
-  { prefix: "/conversations", title: "Conversations" },
-  { prefix: "/calls", title: "Call History" },
+  { prefix: "/admin/bookings", title: "Bookings" },
+  { prefix: "/admin/providers", title: "Providers" },
+  { prefix: "/admin/conversations", title: "Conversations" },
+  { prefix: "/admin/calls", title: "Call History" },
 ];
 
 function titleFor(pathname: string): string {
-  if (pathname === "/") return "Overview";
+  if (pathname === "/admin") return "Overview";
   return TITLES.find((t) => pathname.startsWith(t.prefix))?.title ?? "Dashboard";
 }
 

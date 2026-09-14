@@ -5,10 +5,13 @@ import {
   NotFoundException,
   Param,
   Query,
+  UseGuards,
 } from '@nestjs/common';
+import { AdminAuthGuard } from '../auth/admin-auth.guard';
 import { AvailabilityService } from './availability.service';
 
 @Controller('providers')
+@UseGuards(AdminAuthGuard)
 export class AvailabilityController {
   constructor(private readonly availabilityService: AvailabilityService) {}
 

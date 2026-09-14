@@ -230,7 +230,7 @@ export default function ProvidersPage() {
                     <TableRow key={p.id}>
                       <TableCell>
                         <Link
-                          href={`/providers/${p.id}`}
+                          href={`/admin/providers/${p.id}`}
                           className="font-medium hover:underline"
                         >
                           {p.name}

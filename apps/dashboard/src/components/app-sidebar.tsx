@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   CalendarClock,
   Gauge,
   Headset,
+  LogOut,
   MessageCircle,
   MessagesSquare,
   PhoneCall,
@@ -23,18 +24,29 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { API_URL } from "@/lib/api";
 
 const NAV_ITEMS = [
-  { title: "Overview", href: "/", icon: Gauge },
-  { title: "Chat", href: "/chat", icon: MessageCircle },
-  { title: "Bookings", href: "/bookings", icon: CalendarClock },
-  { title: "Providers", href: "/providers", icon: Stethoscope },
-  { title: "Conversations", href: "/conversations", icon: MessagesSquare },
-  { title: "Call History", href: "/calls", icon: PhoneCall },
+  { title: "Overview", href: "/admin", icon: Gauge },
+  { title: "Chat", href: "/", icon: MessageCircle },
+  { title: "Bookings", href: "/admin/bookings", icon: CalendarClock },
+  { title: "Providers", href: "/admin/providers", icon: Stethoscope },
+  { title: "Conversations", href: "/admin/conversations", icon: MessagesSquare },
+  { title: "Call History", href: "/admin/calls", icon: PhoneCall },
 ];
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+
+  async function handleLogout() {
+    await fetch(`${API_URL}/auth/logout`, {
+      method: "POST",
+      credentials: "include",
+    }).catch(() => {});
+    router.push("/admin/login");
+    router.refresh();
+  }
 
   return (
     <Sidebar collapsible="icon">
@@ -44,7 +56,7 @@ export function AppSidebar() {
             <SidebarMenuButton
               size="lg"
               render={
-                <Link href="/">
+                <Link href="/admin">
                   <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                     <Headset className="size-4" />
                   </div>
@@ -67,9 +79,12 @@ export function AppSidebar() {
             <SidebarMenu>
               {NAV_ITEMS.map((item) => {
                 const isActive =
-                  item.href === "/"
-                    ? pathname === "/"
-                    : pathname === item.href || pathname.startsWith(`${item.href}/`);
+                  item.href === "/admin"
+                    ? pathname === "/admin"
+                    : item.href === "/"
+                      ? false
+                      : pathname === item.href ||
+                        pathname.startsWith(`${item.href}/`);
                 return (
                   <SidebarMenuItem key={item.href}>
                     <SidebarMenuButton
@@ -90,9 +105,14 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
-        <p className="px-2 py-1 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
-          Admin dashboard
-        </p>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton tooltip="Log out" onClick={handleLogout}>
+              <LogOut />
+              <span>Log out</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
   );

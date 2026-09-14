@@ -12,6 +12,7 @@ import { CallSessionsModule } from './modules/call-sessions/call-sessions.module
 import { VoiceModule } from './modules/voice/voice.module';
 import { ChatModule } from './modules/chat/chat.module';
 import { ProvidersModule } from './modules/providers/providers.module';
+import { AuthModule } from './modules/auth/auth.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { ProvidersModule } from './modules/providers/providers.module';
     VoiceModule,
     ChatModule,
     ProvidersModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],
