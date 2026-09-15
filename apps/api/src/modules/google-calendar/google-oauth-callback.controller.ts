@@ -1,5 +1,4 @@
-import { Controller, Get, Logger, Query, Req } from '@nestjs/common';
-import type { Request } from 'express';
+import { Controller, Get, Logger, Query } from '@nestjs/common';
 import { GoogleCalendarService } from './google-calendar.service';
 
 /**
@@ -15,12 +14,10 @@ export class GoogleOAuthCallbackController {
 
   @Get('callback')
   async callback(
-    @Req() req: Request,
     @Query('code') code?: string,
     @Query('state') providerId?: string,
     @Query('error') error?: string,
   ): Promise<string> {
-    this.logger.warn(`TEMP DEBUG callback originalUrl: ${req.originalUrl}`);
     if (error) {
       return `Google Calendar connection was not completed (${error}). You can close this tab and try again.`;
     }

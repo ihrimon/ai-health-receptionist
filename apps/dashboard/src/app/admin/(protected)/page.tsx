@@ -151,7 +151,7 @@ export default function AdminOverviewPage() {
           ) : recentBookings.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               No bookings yet — try the{" "}
-              <Link href="/" className="underline">
+              <Link href="/chat" className="underline">
                 chat page
               </Link>
               .

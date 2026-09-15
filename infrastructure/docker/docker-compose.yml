@@ -1,4 +1,4 @@
-name: brainstack-booking-agent
+name: brainstack-ai-receptionist
 
 services:
   postgres:
@@ -73,4 +73,6 @@ services:
 
 volumes:
   postgres_data:
+    name: brainstack_postgres_data
   redis_data:
+    name: brainstack_redis_data

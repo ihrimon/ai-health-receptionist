@@ -28,7 +28,7 @@ import { API_URL } from "@/lib/api";
 
 const NAV_ITEMS = [
   { title: "Overview", href: "/admin", icon: Gauge },
-  { title: "Chat", href: "/", icon: MessageCircle },
+  { title: "Chat", href: "/chat", icon: MessageCircle },
   { title: "Bookings", href: "/admin/bookings", icon: CalendarClock },
   { title: "Providers", href: "/admin/providers", icon: Stethoscope },
   { title: "Conversations", href: "/admin/conversations", icon: MessagesSquare },
@@ -81,10 +81,8 @@ export function AppSidebar() {
                 const isActive =
                   item.href === "/admin"
                     ? pathname === "/admin"
-                    : item.href === "/"
-                      ? false
-                      : pathname === item.href ||
-                        pathname.startsWith(`${item.href}/`);
+                    : pathname === item.href ||
+                      pathname.startsWith(`${item.href}/`);
                 return (
                   <SidebarMenuItem key={item.href}>
                     <SidebarMenuButton

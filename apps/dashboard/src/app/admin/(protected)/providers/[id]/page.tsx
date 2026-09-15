@@ -232,6 +232,7 @@ export default function ProviderDetailPage() {
             </p>
             <div className="mt-3 flex gap-2">
               <Button
+                nativeButton={false}
                 render={
                   <a href={`${API_URL}/providers/${id}/google/connect`}>
                     Connect Google Calendar

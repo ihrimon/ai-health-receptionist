@@ -1,8 +1,8 @@
 {
-  "name": "brainstack-booking-agent",
+  "name": "brainstack-ai-receptionist",
   "version": "0.1.0",
   "private": true,
-  "description": "BrainStack AI Receptionist - AI Voice & Chat Booking Agent (Monorepo)",
+  "description": "BrainStack AI Receptionist - AI Voice & Chat Receptionist (Monorepo)",
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",

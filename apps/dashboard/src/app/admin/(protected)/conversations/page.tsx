@@ -42,7 +42,7 @@ export default function ConversationsPage() {
           {conversations && conversations.length === 0 && (
             <p className="text-sm text-muted-foreground">
               No conversations yet — try the{" "}
-              <Link href="/" className="underline">
+              <Link href="/chat" className="underline">
                 chat page
               </Link>
               .

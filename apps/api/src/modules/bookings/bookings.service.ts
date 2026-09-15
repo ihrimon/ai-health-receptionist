@@ -24,7 +24,17 @@ export class BookingsService {
   ) {}
 
   async create(dto: CreateBookingDto): Promise<Booking> {
-    const booking = this.bookingsRepository.create(dto);
+    // `dto.startsAt`/`endsAt` are ISO strings (validated by @IsISO8601 on
+    // the DTO) — repository.create() does a shallow assign with no type
+    // coercion, so without this the entity's `startsAt`/`endsAt` would
+    // stay strings in memory (fine for Postgres, which parses them on
+    // INSERT, but breaks anything here that calls .toISOString() on them
+    // before a fresh DB read, e.g. GoogleCalendarService.syncBookingEvent).
+    const booking = this.bookingsRepository.create({
+      ...dto,
+      startsAt: dto.startsAt ? new Date(dto.startsAt) : undefined,
+      endsAt: dto.endsAt ? new Date(dto.endsAt) : undefined,
+    });
     let saved: Booking;
     try {
       saved = await this.bookingsRepository.save(booking);

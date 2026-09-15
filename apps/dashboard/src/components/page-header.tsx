@@ -21,6 +21,7 @@ export function PageHeader({
           <Button
             variant="ghost"
             size="icon-sm"
+            nativeButton={false}
             render={
               <Link href={backHref} aria-label="Back">
                 <ArrowLeft />

@@ -126,6 +126,11 @@ export class GoogleCalendarService {
         await this.bookingsRepository.update(booking.id, {
           googleEventId: data.id,
         });
+        // Keep the caller's in-memory copy in sync too — BookingsService
+        // returns this same object in the create() response, so without
+        // this the API response would show googleEventId: null even
+        // though the row was just updated in the DB.
+        booking.googleEventId = data.id;
       }
     } catch (err) {
       this.logger.warn(

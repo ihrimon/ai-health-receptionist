@@ -6,7 +6,7 @@ export class HealthController {
   check() {
     return {
       status: 'ok',
-      service: 'brainstack-booking-agent-api',
+      service: 'brainstack-ai-receptionist-api',
       timestamp: new Date().toISOString(),
     };
   }

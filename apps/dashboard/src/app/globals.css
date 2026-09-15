@@ -99,6 +99,63 @@
   }
 }
 
+/* Medical/clinical chat theme (public /chat page) — a calm clinical-teal
+   wallpaper with a faint plus/cross motif instead of the WhatsApp dot
+   texture, and matching bubble tails. Uses the .dark class selector
+   (not prefers-color-scheme) so it follows the app's own light/dark/
+   system toggle, not just the OS setting. */
+.medical-wallpaper {
+  background-color: #eef7fa;
+  background-image:
+    linear-gradient(rgba(14, 116, 144, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(14, 116, 144, 0.05) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+.dark .medical-wallpaper {
+  background-color: #07171c;
+  background-image:
+    linear-gradient(rgba(94, 210, 235, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(94, 210, 235, 0.05) 1px, transparent 1px);
+}
+
+/* Home page hero — repeating medical-icon pattern behind the landing
+   content, dimmed with a translucent wash (in HomePage's own markup) so
+   the headline/cards stay legible on top of it. */
+.medical-pattern-bg {
+  background-image: url("/medical-pattern.jpg");
+  background-repeat: repeat;
+  background-size: 260px 260px;
+}
+
+.bubble-tail-med-out::after,
+.bubble-tail-med-in::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  width: 0;
+  height: 0;
+  border-top: 8px solid transparent;
+}
+
+.bubble-tail-med-out::after {
+  right: -7px;
+  border-left: 8px solid #dff3f8;
+}
+
+.bubble-tail-med-in::after {
+  left: -7px;
+  border-right: 8px solid #ffffff;
+}
+
+.dark .bubble-tail-med-out::after {
+  border-left-color: #0b4a5c;
+}
+
+.dark .bubble-tail-med-in::after {
+  border-right-color: #102b34;
+}
+
 @keyframes rec-pulse {
   0%,
   100% {
@@ -111,6 +168,22 @@
 
 .rec-dot {
   animation: rec-pulse 1.2s ease-in-out infinite;
+}
+
+/* CTA glow — a soft breathing ring that draws the eye to the primary
+   button without being as jarring as a sharp animate-ping. */
+@keyframes cta-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 128, 105, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 0 14px rgba(0, 128, 105, 0);
+  }
+}
+
+.cta-glow {
+  animation: cta-glow 2.2s ease-in-out infinite;
 }
 
 :root {
