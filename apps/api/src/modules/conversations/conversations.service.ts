@@ -54,4 +54,9 @@ export class ConversationsService {
     conversation.rating = rating;
     return this.conversationsRepository.save(conversation);
   }
+
+  async remove(id: string): Promise<void> {
+    const conversation = await this.findOne(id);
+    await this.conversationsRepository.remove(conversation);
+  }
 }

@@ -95,18 +95,7 @@ describe('ChatService', () => {
     service = module.get<ChatService>(ChatService);
   });
 
-  it('starts a fresh conversation when no sessionId is given', async () => {
-    let createdCallSid = '';
-    conversationsService.create.mockImplementation(
-      (dto: { callSid: string }) => {
-        createdCallSid = dto.callSid;
-        return Promise.resolve({
-          id: 'conv-1',
-          transcript: null,
-          bookingId: undefined,
-        });
-      },
-    );
+  it('generates a sessionId but persists nothing when a fresh conversation never books', async () => {
     llmChatClient.complete.mockResolvedValue(
       assistantMessage('Hi! What can I help you book today?'),
     );
@@ -114,10 +103,33 @@ describe('ChatService', () => {
     const result = await service.sendMessage({ message: 'Hello' });
 
     expect(conversationsService.findByCallSid).not.toHaveBeenCalled();
-    expect(createdCallSid.startsWith('chat-')).toBe(true);
+    expect(conversationsService.create).not.toHaveBeenCalled();
+    expect(conversationsService.appendTurn).not.toHaveBeenCalled();
     expect(result.reply).toBe('Hi! What can I help you book today?');
     expect(result.bookingCreated).toBe(false);
     expect(result.sessionId).toBeTruthy();
+  });
+
+  it('sends the caller-supplied transcript plus the new message as history, for a fresh (unbooked) session', async () => {
+    llmChatClient.complete.mockResolvedValue(assistantMessage('Got it.'));
+
+    await service.sendMessage({
+      sessionId: 'session-1',
+      message: 'My name is Jane',
+      transcript: [{ role: 'user', text: 'I need a consultation' }],
+    });
+
+    expect(conversationsService.findByCallSid).toHaveBeenCalledWith(
+      'chat-session-1',
+    );
+    expect(llmChatClient.buildMessages).toHaveBeenCalledWith(
+      [
+        { role: 'user', text: 'I need a consultation' },
+        { role: 'user', text: 'My name is Jane' },
+      ],
+      [],
+      [],
+    );
   });
 
   it('continues an existing conversation by sessionId', async () => {
@@ -145,6 +157,36 @@ describe('ChatService', () => {
       [],
       [],
     );
+  });
+
+  it('appends to (never duplicates) an already-booked conversation when the caller keeps chatting in the same session', async () => {
+    conversationsService.findByCallSid.mockResolvedValue({
+      id: 'conv-1',
+      transcript: [{ role: 'model', text: "You're all booked!" }],
+      bookingId: 'booking-1',
+    });
+    llmChatClient.complete.mockResolvedValue(
+      assistantMessage('You’re welcome!'),
+    );
+
+    const result = await service.sendMessage({
+      sessionId: 'session-1',
+      message: 'Thank you!',
+      // A stale/empty client-side transcript must be ignored here — the
+      // existing DB row is the source of truth once one exists.
+      transcript: [],
+    });
+
+    expect(conversationsService.create).not.toHaveBeenCalled();
+    expect(conversationsService.appendTurn).toHaveBeenCalledWith('conv-1', {
+      transcript: [
+        { role: 'model', text: "You're all booked!" },
+        { role: 'user', text: 'Thank you!' },
+        { role: 'model', text: 'You’re welcome!' },
+      ],
+      bookingId: 'booking-1',
+    });
+    expect(result.bookingCreated).toBe(false);
   });
 
   it('passes retrieved knowledge chunks through to buildMessages', async () => {
@@ -194,11 +236,13 @@ describe('ChatService', () => {
   });
 
   it('creates and links a booking when the tool call input is valid', async () => {
-    conversationsService.create.mockResolvedValue({
-      id: 'conv-1',
-      transcript: null,
-      bookingId: undefined,
-    });
+    let createdCallSid = '';
+    conversationsService.create.mockImplementation(
+      (dto: { callSid: string }) => {
+        createdCallSid = dto.callSid;
+        return Promise.resolve({ id: 'conv-1', transcript: null });
+      },
+    );
     llmChatClient.complete.mockResolvedValue(
       toolCallMessage('record_booking', validBookingInput),
     );
@@ -226,6 +270,9 @@ describe('ChatService', () => {
     );
     expect(result.bookingCreated).toBe(true);
     expect(result.booking).toEqual({ id: 'booking-1' });
+    // The conversation row is only created NOW that a booking exists —
+    // never eagerly on message 1.
+    expect(createdCallSid.startsWith('chat-')).toBe(true);
     expect(conversationsService.appendTurn).toHaveBeenCalledWith(
       'conv-1',
       expect.objectContaining({ bookingId: 'booking-1' }),
@@ -271,11 +318,6 @@ describe('ChatService', () => {
   });
 
   it('replies gracefully instead of crashing the turn when the Groq API call itself fails', async () => {
-    conversationsService.create.mockResolvedValue({
-      id: 'conv-1',
-      transcript: null,
-      bookingId: undefined,
-    });
     llmChatClient.complete.mockRejectedValue(
       new Error(
         "Tool call validation failed: attempted to call tool 'collect_name' which was not in request.tools",
@@ -286,30 +328,21 @@ describe('ChatService', () => {
 
     expect(result.reply).toMatch(/trouble processing/i);
     expect(result.bookingCreated).toBe(false);
-    expect(conversationsService.appendTurn).toHaveBeenCalled();
+    expect(conversationsService.create).not.toHaveBeenCalled();
+    expect(conversationsService.appendTurn).not.toHaveBeenCalled();
   });
 
   it('replies with a reassuring message instead of a raw error when every configured LLM key is rate-limited', async () => {
-    conversationsService.create.mockResolvedValue({
-      id: 'conv-1',
-      transcript: null,
-      bookingId: undefined,
-    });
     llmChatClient.complete.mockRejectedValue(new AllLlmKeysExhaustedError());
 
     const result = await service.sendMessage({ message: 'Hello' });
 
     expect(result.reply).toMatch(/give me a moment/i);
     expect(result.bookingCreated).toBe(false);
-    expect(conversationsService.appendTurn).toHaveBeenCalled();
+    expect(conversationsService.appendTurn).not.toHaveBeenCalled();
   });
 
   it('tells the caller the assistant is not set up yet when no LLM credential is configured', async () => {
-    conversationsService.create.mockResolvedValue({
-      id: 'conv-1',
-      transcript: null,
-      bookingId: undefined,
-    });
     llmChatClient.complete.mockRejectedValue(
       new NoLlmCredentialsConfiguredError(),
     );
@@ -318,7 +351,7 @@ describe('ChatService', () => {
 
     expect(result.reply).toMatch(/admin needs to add an api key/i);
     expect(result.bookingCreated).toBe(false);
-    expect(conversationsService.appendTurn).toHaveBeenCalled();
+    expect(conversationsService.appendTurn).not.toHaveBeenCalled();
   });
 
   it('runs the find_available_slots round trip before producing a final reply', async () => {
@@ -379,12 +412,7 @@ describe('ChatService', () => {
     expect(result.reply).toMatch(/trouble checking availability/i);
   });
 
-  it('replies gracefully when the confirmed providerId no longer exists', async () => {
-    conversationsService.create.mockResolvedValue({
-      id: 'conv-1',
-      transcript: null,
-      bookingId: undefined,
-    });
+  it('replies gracefully when the confirmed providerId no longer exists, and persists nothing', async () => {
     llmChatClient.complete.mockResolvedValue(
       toolCallMessage('record_booking', validBookingInput),
     );
@@ -395,14 +423,10 @@ describe('ChatService', () => {
     expect(bookingsService.create).not.toHaveBeenCalled();
     expect(result.bookingCreated).toBe(false);
     expect(result.reply).toMatch(/isn't available anymore/i);
+    expect(conversationsService.create).not.toHaveBeenCalled();
   });
 
-  it('replies gracefully when the slot was booked by someone else in the meantime', async () => {
-    conversationsService.create.mockResolvedValue({
-      id: 'conv-1',
-      transcript: null,
-      bookingId: undefined,
-    });
+  it('replies gracefully when the slot was booked by someone else in the meantime, and persists nothing', async () => {
     llmChatClient.complete.mockResolvedValue(
       toolCallMessage('record_booking', validBookingInput),
     );
@@ -416,6 +440,7 @@ describe('ChatService', () => {
 
     expect(result.bookingCreated).toBe(false);
     expect(result.reply).toMatch(/just booked by someone else/i);
+    expect(conversationsService.create).not.toHaveBeenCalled();
   });
 
   describe('rateConversation', () => {

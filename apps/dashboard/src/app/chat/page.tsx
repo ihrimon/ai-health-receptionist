@@ -199,10 +199,23 @@ export default function ChatPage() {
     setError(null);
 
     try {
+      // The backend no longer keeps its own copy of an unbooked
+      // conversation (see ChatService) — it only ever persists one once a
+      // booking is confirmed, so nothing here shows up in the admin
+      // conversation list unless the visitor actually books. Until then,
+      // this browser's own message history (already kept for
+      // cross-navigation persistence, see the sessionStorage effects
+      // above) IS the conversation's memory — resend it each turn so the
+      // assistant still has full context. The static greeting bubble is
+      // excluded: it was never actually sent through the model.
+      const transcript = messages
+        .filter((m) => m.id !== GREETING.id)
+        .map((m) => ({ role: m.role, text: m.text }));
+
       const res = await fetch(`${API_URL}/chat/message`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId, message: trimmed }),
+        body: JSON.stringify({ sessionId, message: trimmed, transcript }),
       });
 
       if (!res.ok) {

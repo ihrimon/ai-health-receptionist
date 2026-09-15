@@ -62,22 +62,35 @@ export class ChatService {
     private readonly knowledgeService: KnowledgeService,
   ) {}
 
+  /**
+   * No longer creates a `conversations` row up front on message 1 — most
+   * chats never end in a booking, and eagerly persisting every one of
+   * them (including a session someone opens and immediately abandons)
+   * cluttered the admin conversation list with entries nobody would ever
+   * look at. Instead: while unbooked, the caller (chat UI) is the only
+   * one holding the transcript (already true — it's kept in
+   * sessionStorage for cross-navigation persistence) and resends it each
+   * turn via `dto.transcript`. A `conversations` row is only ever
+   * created the moment a booking is actually confirmed, at which point
+   * the full transcript is persisted in one shot. If a conversation
+   * *does* already exist for this session (a booking happened earlier in
+   * it and the caller kept chatting), that row — not the caller-supplied
+   * transcript — is treated as the source of truth and simply appended
+   * to, exactly as before.
+   */
   async sendMessage(dto: SendChatMessageDto): Promise<ChatReply> {
-    let conversation = dto.sessionId
+    const existingConversation = dto.sessionId
       ? await this.conversationsService.findByCallSid(
           this.toCallSid(dto.sessionId),
         )
       : null;
-    const sessionId = conversation ? dto.sessionId! : randomUUID();
+    const sessionId = dto.sessionId ?? randomUUID();
 
-    if (!conversation) {
-      conversation = await this.conversationsService.create({
-        callSid: this.toCallSid(sessionId),
-      });
-    }
-
+    const priorTranscript: ChatTurn[] = existingConversation
+      ? ((existingConversation.transcript as ChatTurn[] | undefined) ?? [])
+      : (dto.transcript ?? []);
     const transcript: ChatTurn[] = [
-      ...((conversation.transcript as ChatTurn[] | undefined) ?? []),
+      ...priorTranscript,
       { role: 'user', text: dto.message },
     ];
 
@@ -92,6 +105,7 @@ export class ChatService {
 
     let bookingCreated = false;
     let booking: { id: string } | undefined;
+    let bookingId: string | undefined = existingConversation?.bookingId;
     let replyText = result.text;
 
     if (result.toolInput) {
@@ -115,7 +129,7 @@ export class ChatService {
           const saved = await this.bookingsService.create(bookingDto);
           bookingCreated = true;
           booking = { id: saved.id };
-          conversation.bookingId = saved.id;
+          bookingId = saved.id;
           if (!replyText) {
             replyText =
               "Perfect — you're all booked! You'll get a confirmation shortly.";
@@ -153,10 +167,23 @@ export class ChatService {
       { role: 'model', text: replyText },
     ];
 
-    await this.conversationsService.appendTurn(conversation.id, {
-      transcript: transcriptToSave as unknown as Record<string, unknown>[],
-      bookingId: conversation.bookingId,
-    });
+    if (existingConversation) {
+      await this.conversationsService.appendTurn(existingConversation.id, {
+        transcript: transcriptToSave as unknown as Record<string, unknown>[],
+        bookingId,
+      });
+    } else if (bookingCreated) {
+      const conversation = await this.conversationsService.create({
+        callSid: this.toCallSid(sessionId),
+      });
+      await this.conversationsService.appendTurn(conversation.id, {
+        transcript: transcriptToSave as unknown as Record<string, unknown>[],
+        bookingId,
+      });
+    }
+    // Neither existing nor just-booked: nothing to persist — the caller
+    // still has the transcript in sessionStorage and will resend it next
+    // turn via dto.transcript.
 
     return { sessionId, reply: replyText, bookingCreated, booking };
   }
