@@ -61,8 +61,11 @@ export class AnthropicAdapter implements LlmProviderAdapter {
     };
   }
 
-  isRateLimitError(err: unknown): boolean {
-    return err instanceof Anthropic.RateLimitError;
+  isRetryableError(err: unknown): boolean {
+    return (
+      err instanceof Anthropic.RateLimitError ||
+      err instanceof Anthropic.AuthenticationError
+    );
   }
 
   getRateLimitHeaders(err: unknown) {

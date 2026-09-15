@@ -62,8 +62,16 @@ export class GeminiAdapter implements LlmProviderAdapter {
     return { message: fromGeminiResponse(result.response) };
   }
 
-  isRateLimitError(err: unknown): boolean {
-    return err instanceof GoogleGenerativeAIFetchError && err.status === 429;
+  isRetryableError(err: unknown): boolean {
+    // Gemini reports an invalid API key as a 400 (not 401) — the message
+    // body says so, but the SDK doesn't parse it into a distinct error
+    // class the way Groq/Anthropic do, so status code is all we can key
+    // off here. 403 covers a key that's valid but lacks access to the
+    // requested model.
+    return (
+      err instanceof GoogleGenerativeAIFetchError &&
+      (err.status === 429 || err.status === 400 || err.status === 403)
+    );
   }
 
   getRateLimitHeaders(): undefined {

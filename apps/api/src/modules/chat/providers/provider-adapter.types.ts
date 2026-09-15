@@ -30,8 +30,16 @@ export interface AdapterCompleteResult {
 
 export interface LlmProviderAdapter {
   complete(params: AdapterCompleteParams): Promise<AdapterCompleteResult>;
-  /** Whether a thrown error represents a rate limit (429) for THIS provider's SDK — each throws a different error class. */
-  isRateLimitError(err: unknown): boolean;
-  /** Rate-limit headers carried on a rate-limit error, if this provider's SDK exposes them (used only after isRateLimitError(err) is true). */
+  /**
+   * Whether a thrown error is worth rotating to the next configured
+   * credential for, rather than failing the turn outright — a rate limit
+   * (429) obviously, but ALSO an authentication error (401/403, a
+   * revoked/mistyped key): a single bad credential shouldn't block every
+   * *other* configured credential behind it in the list from ever being
+   * tried. A genuinely different problem (bad request, network error)
+   * still isn't retried — another key wouldn't fix those.
+   */
+  isRetryableError(err: unknown): boolean;
+  /** Rate-limit headers carried on the error, if this provider's SDK exposes them (used only after isRetryableError(err) is true; not every provider/error has them, e.g. an auth error usually doesn't carry quota info). */
   getRateLimitHeaders(err: unknown): HeaderReader | undefined;
 }

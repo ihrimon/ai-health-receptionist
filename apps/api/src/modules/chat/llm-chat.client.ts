@@ -84,12 +84,15 @@ export class LlmChatClient {
    * (ChatService) owns the tool loop and must branch on that itself.
    *
    * Transparently retries across the admin-configured credentials
-   * (Settings page) on a 429 (RateLimitError) — the caller never sees a
-   * rate-limit error unless every credential is exhausted, in which case
+   * (Settings page) on a rate limit OR an authentication error (see each
+   * adapter's isRetryableError) — a mistyped/revoked key shouldn't block
+   * every *other* configured credential behind it in the list any more
+   * than a rate limit should. The caller never sees either kind of error
+   * unless every credential is exhausted, in which case
    * AllLlmKeysExhaustedError is thrown so ChatService can reply with
    * something friendlier than a raw error. Any other error (bad request,
-   * network, etc.) is NOT retried across credentials — it isn't a quota
-   * problem, another key won't fix it.
+   * network, etc.) is NOT retried across credentials — another key
+   * wouldn't fix those.
    */
   async complete(
     messages: ChatCompletionMessageParam[],
@@ -118,7 +121,7 @@ export class LlmChatClient {
         );
         return result.message;
       } catch (err) {
-        if (!adapter.isRateLimitError(err)) {
+        if (!adapter.isRetryableError(err)) {
           throw err;
         }
         await this.keyManager.recordUsage(

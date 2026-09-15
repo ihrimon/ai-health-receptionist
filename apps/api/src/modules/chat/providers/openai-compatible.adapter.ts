@@ -1,4 +1,4 @@
-import Groq, { RateLimitError } from 'groq-sdk';
+import Groq, { AuthenticationError, RateLimitError } from 'groq-sdk';
 import { FIND_AVAILABLE_SLOTS_TOOL } from '../find-available-slots.tool';
 import { RECORD_BOOKING_TOOL } from '../record-booking.tool';
 import type {
@@ -44,8 +44,8 @@ export class OpenAiCompatibleAdapter implements LlmProviderAdapter {
     };
   }
 
-  isRateLimitError(err: unknown): boolean {
-    return err instanceof RateLimitError;
+  isRetryableError(err: unknown): boolean {
+    return err instanceof RateLimitError || err instanceof AuthenticationError;
   }
 
   getRateLimitHeaders(err: unknown) {

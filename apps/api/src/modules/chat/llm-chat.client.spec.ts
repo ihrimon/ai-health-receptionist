@@ -22,7 +22,7 @@ describe('LlmChatClient', () => {
   };
   let adapter: {
     complete: jest.Mock;
-    isRateLimitError: jest.Mock;
+    isRetryableError: jest.Mock;
     getRateLimitHeaders: jest.Mock;
   };
   let providerRegistry: { get: jest.Mock };
@@ -36,7 +36,7 @@ describe('LlmChatClient', () => {
     };
     adapter = {
       complete: jest.fn(),
-      isRateLimitError: jest.fn().mockReturnValue(false),
+      isRetryableError: jest.fn().mockReturnValue(false),
       getRateLimitHeaders: jest.fn(),
     };
     providerRegistry = { get: jest.fn().mockReturnValue(adapter) };
@@ -105,7 +105,7 @@ describe('LlmChatClient', () => {
     adapter.complete
       .mockRejectedValueOnce(rateLimitErr)
       .mockResolvedValueOnce({ message: assistantMessage('ok now') });
-    adapter.isRateLimitError.mockReturnValue(true);
+    adapter.isRetryableError.mockReturnValue(true);
     adapter.getRateLimitHeaders.mockReturnValue(undefined);
     keyManager.rotateToNext.mockResolvedValue(true);
 
@@ -114,6 +114,34 @@ describe('LlmChatClient', () => {
     expect(result).toEqual(assistantMessage('ok now'));
     expect(keyManager.rotateToNext).toHaveBeenCalledTimes(1);
     expect(adapter.complete).toHaveBeenCalledTimes(2);
+  });
+
+  it('rotates past an invalid/revoked credential (auth error) instead of failing the whole turn', async () => {
+    keyManager.getCredentialCount.mockResolvedValue(2);
+    keyManager.getCurrentCredential
+      .mockResolvedValueOnce({
+        id: 'cred-bad',
+        provider: LlmProvider.GROQ,
+        apiKey: 'invalid-key',
+        model: 'model-a',
+      })
+      .mockResolvedValueOnce({
+        id: 'cred-good',
+        provider: LlmProvider.GROQ,
+        apiKey: 'good-key',
+        model: 'model-a',
+      });
+    const authErr = new Error('401 Invalid API Key');
+    adapter.complete
+      .mockRejectedValueOnce(authErr)
+      .mockResolvedValueOnce({ message: assistantMessage('ok now') });
+    adapter.isRetryableError.mockReturnValue(true);
+    keyManager.rotateToNext.mockResolvedValue(true);
+
+    const result = await client.complete([]);
+
+    expect(result).toEqual(assistantMessage('ok now'));
+    expect(keyManager.rotateToNext).toHaveBeenCalledTimes(1);
   });
 
   it('throws AllLlmKeysExhaustedError when rotation has nowhere left to go', async () => {
@@ -125,7 +153,7 @@ describe('LlmChatClient', () => {
       model: 'model-a',
     });
     adapter.complete.mockRejectedValue(new Error('429'));
-    adapter.isRateLimitError.mockReturnValue(true);
+    adapter.isRetryableError.mockReturnValue(true);
     keyManager.rotateToNext.mockResolvedValue(false);
 
     await expect(client.complete([])).rejects.toThrow(AllLlmKeysExhaustedError);
@@ -141,7 +169,7 @@ describe('LlmChatClient', () => {
     });
     const badRequestErr = new Error('bad request');
     adapter.complete.mockRejectedValue(badRequestErr);
-    adapter.isRateLimitError.mockReturnValue(false);
+    adapter.isRetryableError.mockReturnValue(false);
 
     await expect(client.complete([])).rejects.toThrow(badRequestErr);
     expect(keyManager.rotateToNext).not.toHaveBeenCalled();
