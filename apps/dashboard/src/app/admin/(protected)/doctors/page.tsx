@@ -31,7 +31,52 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { apiFetch, formatDateTime, type Provider } from "@/lib/api";
+import { SERVICE_OPTIONS, CUSTOM_SERVICE } from "@/lib/specialties";
+
+const SLOT_DURATIONS = ["10", "20", "30", "40", "50", "60"];
+
+const FALLBACK_TIMEZONES = [
+  "UTC",
+  "Asia/Dhaka",
+  "Asia/Kolkata",
+  "Asia/Dubai",
+  "Asia/Singapore",
+  "Asia/Tokyo",
+  "Asia/Shanghai",
+  "Europe/London",
+  "Europe/Paris",
+  "Europe/Berlin",
+  "America/New_York",
+  "America/Chicago",
+  "America/Denver",
+  "America/Los_Angeles",
+  "Australia/Sydney",
+];
+
+function getTimezoneOptions(): string[] {
+  try {
+    if (typeof Intl.supportedValuesOf === "function") {
+      return Intl.supportedValuesOf("timeZone");
+    }
+  } catch {
+    // fall through to the fallback list below
+  }
+  return FALLBACK_TIMEZONES;
+}
+
+// Computed once — the full IANA tz database via the runtime's own ICU
+// data, not hand-maintained, so it's never stale. Falls back to a short
+// hand-picked list only on a runtime old enough to lack
+// Intl.supportedValuesOf.
+const TIMEZONES = getTimezoneOptions();
 
 interface FormState {
   name: string;
@@ -331,43 +376,113 @@ function ProviderFormFields({
   form: FormState;
   setForm: (update: (f: FormState) => FormState) => void;
 }) {
+  const isCustomService = form.service !== "" && !SERVICE_OPTIONS.includes(form.service);
+
   return (
     <div className="grid gap-3 sm:grid-cols-2">
-      <LabeledInput
-        label="Name"
-        required
-        value={form.name}
-        onChange={(v) => setForm((f) => ({ ...f, name: v }))}
-      />
-      <LabeledInput
-        label="Email"
-        type="email"
-        required
-        value={form.email}
-        onChange={(v) => setForm((f) => ({ ...f, email: v }))}
-      />
+      <div className="grid gap-1.5 sm:col-span-2">
+        <Label>Name</Label>
+        <Input
+          required
+          value={form.name}
+          onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+        />
+      </div>
+
+      <div className="grid gap-1.5 sm:col-span-2">
+        <Label>Email</Label>
+        <Input
+          type="email"
+          required
+          value={form.email}
+          onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+        />
+      </div>
+
       <LabeledInput
         label="Phone (optional)"
         value={form.phone}
         onChange={(v) => setForm((f) => ({ ...f, phone: v }))}
       />
-      <LabeledInput
-        label="Service"
-        required
-        value={form.service}
-        onChange={(v) => setForm((f) => ({ ...f, service: v }))}
-      />
-      <LabeledInput
-        label="Slot duration (minutes)"
-        type="number"
-        value={form.slotDurationMinutes}
-        onChange={(v) => setForm((f) => ({ ...f, slotDurationMinutes: v }))}
-      />
-      <LabeledInput
-        label="Timezone"
-        value={form.timezone}
-        onChange={(v) => setForm((f) => ({ ...f, timezone: v }))}
-      />
+
+      <div className="grid gap-1.5">
+        <Label>Service</Label>
+        <Select
+          value={isCustomService ? CUSTOM_SERVICE : form.service}
+          onValueChange={(v) =>
+            setForm((f) => ({
+              ...f,
+              service: v === CUSTOM_SERVICE ? "" : (v ?? ""),
+            }))
+          }
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Select a specialty" />
+          </SelectTrigger>
+          <SelectContent>
+            {SERVICE_OPTIONS.map((s) => (
+              <SelectItem key={s} value={s}>
+                {s}
+              </SelectItem>
+            ))}
+            <SelectItem value={CUSTOM_SERVICE}>Custom…</SelectItem>
+          </SelectContent>
+        </Select>
+        {isCustomService && (
+          <Input
+            required
+            autoFocus
+            value={form.service}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, service: e.target.value }))
+            }
+            placeholder="Exact specialty name"
+            className="mt-1.5"
+          />
+        )}
+      </div>
+
+      <div className="grid gap-1.5">
+        <Label>Slot duration</Label>
+        <Select
+          value={form.slotDurationMinutes}
+          onValueChange={(v) =>
+            setForm((f) => ({ ...f, slotDurationMinutes: v ?? "30" }))
+          }
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {SLOT_DURATIONS.map((d) => (
+              <SelectItem key={d} value={d}>
+                {d} minutes
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="grid gap-1.5 sm:col-span-2">
+        <Label>Timezone</Label>
+        <Select
+          value={form.timezone}
+          onValueChange={(v) =>
+            setForm((f) => ({ ...f, timezone: v ?? "Asia/Dhaka" }))
+          }
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="max-h-72" alignItemWithTrigger={false}>
+            {TIMEZONES.map((tz) => (
+              <SelectItem key={tz} value={tz}>
+                {tz}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
     </div>
   );
 }

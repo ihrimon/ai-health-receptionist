@@ -1,3 +1,12 @@
+// Temporarily disabled — Twilio voice calling (Phase 2/3) isn't live yet,
+// so this page has nothing real to show. Nav link removed too (see
+// app-sidebar.tsx / site-header.tsx). Uncomment everything below to bring
+// it back once real call sessions start showing up.
+export default function CallsPage() {
+  return null;
+}
+
+/*
 "use client";
 
 import { useEffect, useState } from "react";
@@ -101,3 +110,4 @@ export default function CallsPage() {
     </div>
   );
 }
+*/

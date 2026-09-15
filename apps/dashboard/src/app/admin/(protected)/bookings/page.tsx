@@ -19,6 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,6 +38,7 @@ import {
 } from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/status-badge";
 import { apiFetch, formatDateTime, type Booking, type Provider } from "@/lib/api";
+import { SERVICE_OPTIONS, CUSTOM_SERVICE } from "@/lib/specialties";
 
 const STATUS_FILTERS = ["all", "pending", "confirmed", "completed", "cancelled"] as const;
 
@@ -313,18 +315,59 @@ export default function BookingsPage() {
                   onChange={(v) => setEditForm((f) => f && { ...f, email: v })}
                 />
                 <LabeledInput
-                  label="Company"
+                  label="Company (optional)"
                   value={editForm.company}
                   onChange={(v) => setEditForm((f) => f && { ...f, company: v })}
                 />
+                <div className="grid gap-1.5">
+                  <Label>Service</Label>
+                  <Select
+                    value={
+                      editForm.service !== "" &&
+                      !SERVICE_OPTIONS.includes(editForm.service)
+                        ? CUSTOM_SERVICE
+                        : editForm.service
+                    }
+                    onValueChange={(v) =>
+                      setEditForm(
+                        (f) =>
+                          f && {
+                            ...f,
+                            service: v === CUSTOM_SERVICE ? "" : (v ?? ""),
+                          },
+                      )
+                    }
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select a specialty" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SERVICE_OPTIONS.map((s) => (
+                        <SelectItem key={s} value={s}>
+                          {s}
+                        </SelectItem>
+                      ))}
+                      <SelectItem value={CUSTOM_SERVICE}>Custom…</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {editForm.service !== "" &&
+                    !SERVICE_OPTIONS.includes(editForm.service) && (
+                      <Input
+                        required
+                        autoFocus
+                        value={editForm.service}
+                        onChange={(e) =>
+                          setEditForm(
+                            (f) => f && { ...f, service: e.target.value },
+                          )
+                        }
+                        placeholder="Exact specialty name"
+                        className="mt-1.5"
+                      />
+                    )}
+                </div>
                 <LabeledInput
-                  label="Service"
-                  required
-                  value={editForm.service}
-                  onChange={(v) => setEditForm((f) => f && { ...f, service: v })}
-                />
-                <LabeledInput
-                  label="Budget"
+                  label="Budget (optional)"
                   value={editForm.budget}
                   onChange={(v) => setEditForm((f) => f && { ...f, budget: v })}
                 />
@@ -347,11 +390,15 @@ export default function BookingsPage() {
                   }
                 />
               </div>
-              <LabeledInput
-                label="Notes"
-                value={editForm.notes}
-                onChange={(v) => setEditForm((f) => f && { ...f, notes: v })}
-              />
+              <div className="grid gap-1.5">
+                <Label>Notes (optional)</Label>
+                <Textarea
+                  value={editForm.notes}
+                  onChange={(e) =>
+                    setEditForm((f) => f && { ...f, notes: e.target.value })
+                  }
+                />
+              </div>
               <DialogFooter>
                 <Button type="submit" disabled={saving}>
                   {saving ? "Saving…" : "Save changes"}

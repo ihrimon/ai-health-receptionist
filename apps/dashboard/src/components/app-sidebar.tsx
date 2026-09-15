@@ -10,7 +10,6 @@ import {
   LogOut,
   MessageCircle,
   MessagesSquare,
-  PhoneCall,
   Settings,
   Stethoscope,
 } from "lucide-react";
@@ -45,7 +44,8 @@ const NAV_ITEMS = [
   { title: "Bookings", href: "/admin/bookings", icon: CalendarClock },
   { title: "Doctors", href: "/admin/doctors", icon: Stethoscope },
   { title: "Conversations", href: "/admin/conversations", icon: MessagesSquare },
-  { title: "Call History", href: "/admin/calls", icon: PhoneCall },
+  // Call History temporarily disabled — see calls/page.tsx.
+  // { title: "Call History", href: "/admin/calls", icon: PhoneCall },
 ];
 
 export function AppSidebar() {

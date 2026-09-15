@@ -6,7 +6,7 @@ import {
   CalendarClock,
   Headset,
   MessagesSquare,
-  PhoneCall,
+  // PhoneCall, // Call History temporarily disabled
   Stethoscope,
 } from "lucide-react";
 import {
@@ -31,7 +31,7 @@ import {
   apiFetch,
   formatDateTime,
   type Booking,
-  type CallSession,
+  // type CallSession, // Call History temporarily disabled
   type Conversation,
   type Provider,
 } from "@/lib/api";
@@ -39,7 +39,7 @@ import {
 export default function AdminOverviewPage() {
   const [bookings, setBookings] = useState<Booking[] | null>(null);
   const [providers, setProviders] = useState<Provider[] | null>(null);
-  const [calls, setCalls] = useState<CallSession[] | null>(null);
+  // const [calls, setCalls] = useState<CallSession[] | null>(null); // Call History temporarily disabled
   const [conversations, setConversations] = useState<Conversation[] | null>(
     null,
   );
@@ -47,7 +47,7 @@ export default function AdminOverviewPage() {
   useEffect(() => {
     apiFetch<Booking[]>("/bookings").then(setBookings).catch(() => setBookings([]));
     apiFetch<Provider[]>("/providers").then(setProviders).catch(() => setProviders([]));
-    apiFetch<CallSession[]>("/call-sessions").then(setCalls).catch(() => setCalls([]));
+    // apiFetch<CallSession[]>("/call-sessions").then(setCalls).catch(() => setCalls([])); // Call History temporarily disabled
     apiFetch<Conversation[]>("/conversations")
       .then(setConversations)
       .catch(() => setConversations([]));
@@ -84,13 +84,14 @@ export default function AdminOverviewPage() {
       icon: MessagesSquare,
       href: "/admin/conversations",
     },
-    {
-      title: "Calls",
-      value: calls?.length,
-      description: "Twilio call sessions",
-      icon: PhoneCall,
-      href: "/admin/calls",
-    },
+    // Call History temporarily disabled — see calls/page.tsx.
+    // {
+    //   title: "Calls",
+    //   value: calls?.length,
+    //   description: "Twilio call sessions",
+    //   icon: PhoneCall,
+    //   href: "/admin/calls",
+    // },
   ];
 
   const recentBookings = bookings?.slice(0, 5) ?? [];
