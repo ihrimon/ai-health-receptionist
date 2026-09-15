@@ -33,11 +33,48 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   API_URL,
   apiFetch,
   formatDateTime,
   type LlmCredential,
+  type LlmProvider,
 } from "@/lib/api";
+
+const PROVIDERS: { value: LlmProvider; label: string }[] = [
+  { value: "groq", label: "Groq" },
+  { value: "openai", label: "OpenAI" },
+  { value: "anthropic", label: "Anthropic (Claude)" },
+  { value: "gemini", label: "Google (Gemini)" },
+];
+
+// A starting point, not an exhaustive/live list — providers ship new
+// models faster than this can be kept in sync. "Custom…" always escapes
+// to a free-text field for anything not listed here.
+const MODELS_BY_PROVIDER: Record<LlmProvider, string[]> = {
+  groq: [
+    "openai/gpt-oss-20b",
+    "openai/gpt-oss-120b",
+    "llama-3.3-70b-versatile",
+    "llama-3.1-8b-instant",
+    "gemma2-9b-it",
+  ],
+  openai: ["gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini", "o3-mini"],
+  anthropic: [
+    "claude-sonnet-5",
+    "claude-opus-5",
+    "claude-haiku-4-5-20251001",
+    "claude-fable-5-1",
+  ],
+  gemini: ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"],
+};
+const CUSTOM_MODEL = "__custom__";
 
 export default function SettingsPage() {
   const [unlocked, setUnlocked] = useState(false);
@@ -229,9 +266,17 @@ function LlmCredentialsSettings() {
   const [deleteTarget, setDeleteTarget] = useState<LlmCredential | null>(null);
 
   const [createOpen, setCreateOpen] = useState(false);
+  const [provider, setProvider] = useState<LlmProvider>("groq");
   const [apiKey, setApiKey] = useState("");
-  const [model, setModel] = useState("");
+  const [model, setModel] = useState(MODELS_BY_PROVIDER.groq[0]);
+  const [customModel, setCustomModel] = useState("");
   const [saving, setSaving] = useState(false);
+
+  function selectProvider(next: LlmProvider) {
+    setProvider(next);
+    setModel(MODELS_BY_PROVIDER[next][0]);
+    setCustomModel("");
+  }
 
   function load() {
     apiFetch<LlmCredential[]>("/llm-credentials")
@@ -261,15 +306,18 @@ function LlmCredentialsSettings() {
 
   async function handleCreate(e: FormEvent) {
     e.preventDefault();
+    const resolvedModel = model === CUSTOM_MODEL ? customModel.trim() : model;
+    if (!resolvedModel) return;
+
     setSaving(true);
     setError(null);
     try {
       await apiFetch("/llm-credentials", {
         method: "POST",
-        body: JSON.stringify({ apiKey, model }),
+        body: JSON.stringify({ provider, apiKey, model: resolvedModel }),
       });
       setApiKey("");
-      setModel("");
+      selectProvider("groq");
       setCreateOpen(false);
       load();
     } catch (err) {
@@ -369,6 +417,24 @@ function LlmCredentialsSettings() {
                   </DialogHeader>
                   <form onSubmit={handleCreate} className="grid gap-3">
                     <div className="grid gap-1.5">
+                      <Label>Provider</Label>
+                      <Select
+                        value={provider}
+                        onValueChange={(v) => selectProvider(v as LlmProvider)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {PROVIDERS.map((p) => (
+                            <SelectItem key={p.value} value={p.value}>
+                              {p.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid gap-1.5">
                       <Label>API key</Label>
                       <Input
                         type="password"
@@ -380,13 +446,33 @@ function LlmCredentialsSettings() {
                       />
                     </div>
                     <div className="grid gap-1.5">
-                      <Label>LLM model</Label>
-                      <Input
-                        required
+                      <Label>Model</Label>
+                      <Select
                         value={model}
-                        onChange={(e) => setModel(e.target.value)}
-                        placeholder="e.g. openai/gpt-oss-20b"
-                      />
+                        onValueChange={(v) => setModel(v ?? CUSTOM_MODEL)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {MODELS_BY_PROVIDER[provider].map((m) => (
+                            <SelectItem key={m} value={m}>
+                              {m}
+                            </SelectItem>
+                          ))}
+                          <SelectItem value={CUSTOM_MODEL}>Custom…</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {model === CUSTOM_MODEL && (
+                        <Input
+                          required
+                          autoFocus
+                          value={customModel}
+                          onChange={(e) => setCustomModel(e.target.value)}
+                          placeholder="Exact model id"
+                          className="mt-1.5"
+                        />
+                      )}
                     </div>
                     <DialogFooter>
                       <Button type="submit" disabled={saving}>
@@ -440,6 +526,10 @@ function LlmCredentialsSettings() {
                     <div className="flex items-center gap-2">
                       {index === 0 && <Badge>Default</Badge>}
                       <span className="text-sm font-medium">{c.model}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {PROVIDERS.find((p) => p.value === c.provider)
+                          ?.label ?? c.provider}
+                      </span>
                     </div>
                     <div className="mt-1 flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
                       <span>

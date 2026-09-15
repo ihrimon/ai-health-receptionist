@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import type { LlmProvider } from '../../database/entities';
 import { LlmCredentialsService } from '../llm-credentials/llm-credentials.service';
 
 /** Thrown when no LLM credential has been configured yet (Settings page is empty). */
@@ -19,6 +20,7 @@ export class AllLlmKeysExhaustedError extends Error {
 
 export interface LlmCredentialSnapshot {
   id: string;
+  provider: LlmProvider;
   apiKey: string;
   model: string;
 }
@@ -71,6 +73,7 @@ export class LlmKeyManager {
     return credential
       ? {
           id: credential.id,
+          provider: credential.provider,
           apiKey: credential.apiKey,
           model: credential.model,
         }
@@ -108,21 +111,24 @@ export class LlmKeyManager {
    * real API call — best-effort: a failure here is logged and swallowed,
    * never allowed to fail the chat turn itself.
    */
-  async recordUsage(id: string, headers: HeaderReader): Promise<void> {
+  async recordUsage(id: string, headers?: HeaderReader): Promise<void> {
     try {
       await this.credentialsService.recordUsage(id, {
-        rlLimitRequests: readIntHeader(headers, 'x-ratelimit-limit-requests'),
-        rlRemainingRequests: readIntHeader(
-          headers,
-          'x-ratelimit-remaining-requests',
-        ),
-        rlResetRequests: headers.get('x-ratelimit-reset-requests') ?? undefined,
-        rlLimitTokens: readIntHeader(headers, 'x-ratelimit-limit-tokens'),
-        rlRemainingTokens: readIntHeader(
-          headers,
-          'x-ratelimit-remaining-tokens',
-        ),
-        rlResetTokens: headers.get('x-ratelimit-reset-tokens') ?? undefined,
+        rlLimitRequests: headers
+          ? readIntHeader(headers, 'x-ratelimit-limit-requests')
+          : undefined,
+        rlRemainingRequests: headers
+          ? readIntHeader(headers, 'x-ratelimit-remaining-requests')
+          : undefined,
+        rlResetRequests:
+          headers?.get('x-ratelimit-reset-requests') ?? undefined,
+        rlLimitTokens: headers
+          ? readIntHeader(headers, 'x-ratelimit-limit-tokens')
+          : undefined,
+        rlRemainingTokens: headers
+          ? readIntHeader(headers, 'x-ratelimit-remaining-tokens')
+          : undefined,
+        rlResetTokens: headers?.get('x-ratelimit-reset-tokens') ?? undefined,
       });
     } catch (err) {
       this.logger.warn(

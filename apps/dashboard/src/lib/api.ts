@@ -125,8 +125,11 @@ export interface Conversation {
   createdAt: string;
 }
 
+export type LlmProvider = "groq" | "openai" | "anthropic" | "gemini";
+
 export interface LlmCredential {
   id: string;
+  provider: LlmProvider;
   apiKey: string;
   model: string;
   sortOrder: number;

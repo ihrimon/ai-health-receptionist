@@ -7,6 +7,20 @@ import {
 } from 'typeorm';
 
 /**
+ * Which LLM provider this credential's apiKey/model belong to — determines
+ * which adapter (see modules/chat/providers) LlmChatClient dispatches to.
+ * Groq and OpenAI both speak the same OpenAI-compatible chat-completions
+ * format; Anthropic and Gemini each have their own distinct API shape,
+ * handled by dedicated adapters.
+ */
+export enum LlmProvider {
+  GROQ = 'groq',
+  OPENAI = 'openai',
+  ANTHROPIC = 'anthropic',
+  GEMINI = 'gemini',
+}
+
+/**
  * Admin-managed LLM API key + model pairs, replacing the old .env-based
  * GROQ_API_KEY/GROQ_MODEL config — see docs/update.md. Ordered by
  * `sortOrder` (ascending): index 0 is the default/primary credential
@@ -24,6 +38,13 @@ import {
 export class LlmCredential {
   @PrimaryGeneratedColumn('uuid')
   id: string;
+
+  @Column({
+    type: 'enum',
+    enum: LlmProvider,
+    default: LlmProvider.GROQ,
+  })
+  provider: LlmProvider;
 
   @Column({ name: 'api_key' })
   apiKey: string;

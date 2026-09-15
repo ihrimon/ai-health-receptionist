@@ -1,0 +1,185 @@
+import {
+  GoogleGenerativeAI,
+  GoogleGenerativeAIFetchError,
+  type Content,
+  type FunctionDeclaration,
+  type FunctionDeclarationSchema,
+  type Part,
+  type Tool,
+} from '@google/generative-ai';
+import { randomUUID } from 'crypto';
+import { FIND_AVAILABLE_SLOTS_TOOL } from '../find-available-slots.tool';
+import { RECORD_BOOKING_TOOL } from '../record-booking.tool';
+import type {
+  AdapterCompleteParams,
+  AdapterCompleteResult,
+  ChatCompletionMessage,
+  ChatCompletionMessageParam,
+  LlmProviderAdapter,
+} from './provider-adapter.types';
+
+// Both tool constants are `{ type: 'function', function: {...} }` literals
+// (never any other Groq.ChatCompletionTool variant), so `function` is
+// always present despite the SDK's general type marking it optional.
+const FUNCTION_DECLARATIONS: FunctionDeclaration[] = [
+  RECORD_BOOKING_TOOL,
+  FIND_AVAILABLE_SLOTS_TOOL,
+].map((tool) => ({
+  name: tool.function!.name,
+  description: tool.function!.description,
+  // SchemaType's enum values ARE the plain lowercase JSON Schema type
+  // strings ("object", "string", ...) our tool defs already use — this
+  // is a type-level cast, not a value conversion.
+  parameters: tool.function!.parameters as unknown as FunctionDeclarationSchema,
+}));
+const TOOLS: Tool[] = [{ functionDeclarations: FUNCTION_DECLARATIONS }];
+
+/**
+ * Gemini's API has its own shape — `contents` with role "user"/"model"
+ * instead of "user"/"assistant", a separate `systemInstruction` instead
+ * of a system-role message, function calls as `functionCall` parts
+ * (unlike OpenAI/Anthropic, with no id of their own — synthesized here so
+ * ChatService's tool loop still has something to correlate against), and
+ * tool results as role "function" `functionResponse` parts. This adapter
+ * translates our canonical OpenAI-shape messages to/from that.
+ */
+export class GeminiAdapter implements LlmProviderAdapter {
+  async complete({
+    apiKey,
+    model,
+    messages,
+  }: AdapterCompleteParams): Promise<AdapterCompleteResult> {
+    const client = new GoogleGenerativeAI(apiKey);
+    const { systemInstruction, contents } = toGeminiContents(messages);
+    const generativeModel = client.getGenerativeModel({
+      model,
+      tools: TOOLS,
+      systemInstruction,
+    });
+
+    const result = await generativeModel.generateContent({ contents });
+
+    return { message: fromGeminiResponse(result.response) };
+  }
+
+  isRateLimitError(err: unknown): boolean {
+    return err instanceof GoogleGenerativeAIFetchError && err.status === 429;
+  }
+
+  getRateLimitHeaders(): undefined {
+    // The Gemini SDK doesn't expose response headers on its errors — the
+    // rotation logic still works fine (a 429 still triggers rotation),
+    // just without a usage snapshot for the Settings page.
+    return undefined;
+  }
+}
+
+function toGeminiContents(messages: ChatCompletionMessageParam[]): {
+  systemInstruction: string;
+  contents: Content[];
+} {
+  // Gemini's functionResponse part needs the function's *name*, but our
+  // canonical "tool" role message only carries the tool_call_id — recover
+  // the name from whichever earlier assistant tool_calls entry it
+  // answers.
+  const nameByToolCallId = new Map<string, string>();
+  for (const message of messages) {
+    if (message.role === 'assistant') {
+      for (const call of message.tool_calls ?? []) {
+        nameByToolCallId.set(call.id, call.function.name);
+      }
+    }
+  }
+
+  const systemParts: string[] = [];
+  const contents: Content[] = [];
+
+  for (const message of messages) {
+    if (message.role === 'system') {
+      if (typeof message.content === 'string')
+        systemParts.push(message.content);
+      continue;
+    }
+
+    if (message.role === 'user') {
+      contents.push({
+        role: 'user',
+        parts: [
+          { text: typeof message.content === 'string' ? message.content : '' },
+        ],
+      });
+      continue;
+    }
+
+    if (message.role === 'assistant') {
+      const toolCalls = message.tool_calls ?? [];
+      const parts: Part[] = [];
+      if (typeof message.content === 'string' && message.content) {
+        parts.push({ text: message.content });
+      }
+      for (const call of toolCalls) {
+        parts.push({
+          functionCall: {
+            name: call.function.name,
+            args: safeJsonParse(call.function.arguments),
+          },
+        });
+      }
+      if (parts.length === 0) parts.push({ text: '' });
+      contents.push({ role: 'model', parts });
+      continue;
+    }
+
+    if (message.role === 'tool') {
+      const name = nameByToolCallId.get(message.tool_call_id) ?? 'unknown';
+      contents.push({
+        role: 'function',
+        parts: [
+          {
+            functionResponse: {
+              name,
+              response: safeJsonParse(
+                typeof message.content === 'string' ? message.content : '{}',
+              ),
+            },
+          },
+        ],
+      });
+    }
+  }
+
+  return { systemInstruction: systemParts.join('\n\n'), contents };
+}
+
+function fromGeminiResponse(response: {
+  text: () => string;
+  functionCalls: () => { name: string; args: object }[] | undefined;
+}): ChatCompletionMessage {
+  const text = response.text();
+  const calls = response.functionCalls() ?? [];
+
+  return {
+    role: 'assistant',
+    content: text || null,
+    ...(calls.length > 0
+      ? {
+          tool_calls: calls.map((call) => ({
+            id: randomUUID(),
+            type: 'function' as const,
+            function: {
+              name: call.name,
+              arguments: JSON.stringify(call.args ?? {}),
+            },
+          })),
+        }
+      : {}),
+  };
+}
+
+function safeJsonParse(json: string): object {
+  try {
+    return JSON.parse(json) as object;
+  } catch {
+    return {};
+  }
+}

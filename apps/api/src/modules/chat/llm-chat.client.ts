@@ -1,19 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common';
-import Groq, { RateLimitError } from 'groq-sdk';
 import type {
   ChatCompletionMessage,
   ChatCompletionMessageParam,
 } from 'groq-sdk/resources/chat/completions';
 import * as fs from 'fs';
 import * as path from 'path';
-import { FIND_AVAILABLE_SLOTS_TOOL } from './find-available-slots.tool';
 import {
   AllLlmKeysExhaustedError,
-  type HeaderReader,
   LlmKeyManager,
   NoLlmCredentialsConfiguredError,
 } from './llm-key-manager';
-import { RECORD_BOOKING_TOOL } from './record-booking.tool';
+import { ProviderRegistry } from './providers/provider-registry';
 
 export interface ChatTurn {
   role: 'user' | 'model';
@@ -33,7 +30,10 @@ export class LlmChatClient {
   private readonly logger = new Logger(LlmChatClient.name);
   private systemInstruction?: string;
 
-  constructor(private readonly keyManager: LlmKeyManager) {}
+  constructor(
+    private readonly keyManager: LlmKeyManager,
+    private readonly providerRegistry: ProviderRegistry,
+  ) {}
 
   /** Pure — builds the messages array for a turn, no API call. Extend this array with assistant/tool messages between complete() calls to run a tool loop. */
   buildMessages(
@@ -104,34 +104,26 @@ export class LlmChatClient {
       if (!credential) {
         throw new AllLlmKeysExhaustedError();
       }
+      const adapter = this.providerRegistry.get(credential.provider);
 
       try {
-        const client = new Groq({ apiKey: credential.apiKey });
-        const { data: completion, response } = await client.chat.completions
-          .create({
-            model: credential.model,
-            messages,
-            tools: [RECORD_BOOKING_TOOL, FIND_AVAILABLE_SLOTS_TOOL],
-            tool_choice: 'auto',
-            max_tokens: 1024,
-          })
-          .withResponse();
-        await this.keyManager.recordUsage(credential.id, response.headers);
-
-        return (
-          completion.choices[0]?.message ?? { role: 'assistant', content: '' }
-        );
-      } catch (err) {
-        if (!(err instanceof RateLimitError)) {
-          throw err;
-        }
-        // groq-sdk types err.headers via a cross-platform "SelectType"
-        // conditional that TS can't statically resolve to a concrete
-        // Headers-like shape here — at runtime it's the same fetch
-        // Headers object as response.headers above.
+        const result = await adapter.complete({
+          apiKey: credential.apiKey,
+          model: credential.model,
+          messages,
+        });
         await this.keyManager.recordUsage(
           credential.id,
-          err.headers as unknown as HeaderReader,
+          result.rateLimitHeaders,
+        );
+        return result.message;
+      } catch (err) {
+        if (!adapter.isRateLimitError(err)) {
+          throw err;
+        }
+        await this.keyManager.recordUsage(
+          credential.id,
+          adapter.getRateLimitHeaders(err),
         );
         if (!(await this.keyManager.rotateToNext())) {
           throw new AllLlmKeysExhaustedError();
