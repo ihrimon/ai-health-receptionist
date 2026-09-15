@@ -134,7 +134,7 @@ export default function ProviderDetailPage() {
     <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
       <div className="mx-auto grid max-w-3xl gap-6">
         <div className="overflow-hidden rounded-2xl border bg-card">
-          <div className="relative h-24 bg-linear-to-r from-primary to-[#22d3ee] sm:h-28">
+          <div className="relative flex flex-col items-center bg-linear-to-r from-primary to-[#22d3ee] px-6 pb-6 pt-14">
             <Button
               variant="ghost"
               size="icon-sm"
@@ -146,9 +146,7 @@ export default function ProviderDetailPage() {
                 </Link>
               }
             />
-          </div>
-          <div className="flex flex-col items-center px-6 pb-6 text-center">
-            <div className="-mt-12 size-24 shrink-0 overflow-hidden rounded-full border-4 border-card bg-muted shadow-sm sm:-mt-14 sm:size-28">
+            <div className="size-24 shrink-0 overflow-hidden rounded-full border-4 border-white/80 bg-muted shadow-sm sm:size-28">
               <Image
                 src="/doctor.png"
                 alt={provider.name}
@@ -157,7 +155,9 @@ export default function ProviderDetailPage() {
                 className="size-full object-cover"
               />
             </div>
-            <h1 className="mt-3 text-xl font-semibold">{provider.name}</h1>
+          </div>
+          <div className="flex flex-col items-center px-6 pb-6 pt-3 text-center">
+            <h1 className="text-xl font-semibold">{provider.name}</h1>
             <p className="text-sm text-muted-foreground">
               {provider.service} · {provider.slotDurationMinutes} min slots ·{" "}
               {provider.timezone}
