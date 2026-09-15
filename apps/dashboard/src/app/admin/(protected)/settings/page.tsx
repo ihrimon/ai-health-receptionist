@@ -1,13 +1,11 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import Link from "next/link";
 import {
   ArrowDown,
   ArrowUp,
   Eye,
   EyeOff,
-  KeyRound,
   Plus,
   RefreshCw,
   Trash2,
@@ -40,7 +38,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  API_URL,
   apiFetch,
   formatDateTime,
   type LlmCredential,
@@ -77,94 +74,7 @@ const MODELS_BY_PROVIDER: Record<LlmProvider, string[]> = {
 const CUSTOM_MODEL = "__custom__";
 
 export default function SettingsPage() {
-  const [unlocked, setUnlocked] = useState(false);
-
-  return unlocked ? (
-    <LlmCredentialsSettings />
-  ) : (
-    <PasswordGate onUnlock={() => setUnlocked(true)} />
-  );
-}
-
-/**
- * Extra re-authentication step on top of the admin session that already
- * guards this whole /admin area — the API keys here are meaningfully more
- * sensitive than everything else in the dashboard (they're live, billable
- * credentials), so Settings asks for the password again every time it's
- * opened rather than trusting a session that may have been left signed
- * in on a shared machine. Deliberately not persisted (no "remember this
- * tab") — that's the point.
- */
-function PasswordGate({ onUnlock }: { onUnlock: () => void }) {
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [verifying, setVerifying] = useState(false);
-
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    setVerifying(true);
-    setError(null);
-    try {
-      const res = await fetch(`${API_URL}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ password }),
-      });
-      if (!res.ok) {
-        throw new Error(
-          res.status === 401 ? "Incorrect password." : `Failed (${res.status}).`,
-        );
-      }
-      onUnlock();
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setVerifying(false);
-    }
-  }
-
-  return (
-    <div className="flex min-h-0 flex-1 items-center justify-center p-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="items-center text-center">
-          <div className="mb-2 flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <KeyRound className="size-5" />
-          </div>
-          <CardTitle>Confirm your password</CardTitle>
-          <CardDescription>
-            Settings holds live API keys — please re-enter the admin
-            password to continue.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="grid gap-4">
-            <div className="grid gap-1.5">
-              <Label htmlFor="settings-password">Password</Label>
-              <Input
-                id="settings-password"
-                type="password"
-                autoFocus
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
-            {error && <p className="text-sm text-destructive">{error}</p>}
-            <Button type="submit" disabled={verifying} className="w-full">
-              {verifying ? "Checking…" : "Continue"}
-            </Button>
-            <Link
-              href="/admin"
-              className="text-center text-sm text-muted-foreground hover:underline"
-            >
-              Back to dashboard
-            </Link>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
-  );
+  return <LlmCredentialsSettings />;
 }
 
 function maskKey(apiKey: string): string {
