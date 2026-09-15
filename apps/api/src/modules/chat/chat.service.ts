@@ -20,7 +20,11 @@ import { ProvidersService } from '../providers/providers.service';
 import { addMinutes, combineDateAndDhakaTime } from '../providers/slot-math';
 import { ChatToolExecutor } from './chat-tool-executor';
 import { SendChatMessageDto } from './dto/send-chat-message.dto';
-import { ChatTurn, GroqChatClient } from './groq-chat.client';
+import {
+  AllLlmKeysExhaustedError,
+  NoLlmCredentialsConfiguredError,
+} from './llm-key-manager';
+import { ChatTurn, LlmChatClient } from './llm-chat.client';
 
 const CHAT_SESSION_PREFIX = 'chat-';
 const MAX_TOOL_ROUNDTRIPS = 4;
@@ -28,6 +32,10 @@ const UNAVAILABLE_REPLY =
   "Sorry, I'm having trouble checking availability right now — could you try again in a moment?";
 const LLM_UNAVAILABLE_REPLY =
   "Sorry, I'm having trouble processing that right now — could you try again in a moment?";
+const ALL_KEYS_EXHAUSTED_REPLY =
+  "I'm getting a lot of requests right now — give me a moment and try again, we'll pick up right where we left off.";
+const NO_CREDENTIALS_REPLY =
+  "Sorry, the AI assistant isn't set up yet — an admin needs to add an API key under Settings.";
 
 export interface ChatReply {
   sessionId: string;
@@ -46,7 +54,7 @@ export class ChatService {
   private readonly logger = new Logger(ChatService.name);
 
   constructor(
-    private readonly groqChatClient: GroqChatClient,
+    private readonly llmChatClient: LlmChatClient,
     private readonly chatToolExecutor: ChatToolExecutor,
     private readonly conversationsService: ConversationsService,
     private readonly bookingsService: BookingsService,
@@ -74,9 +82,11 @@ export class ChatService {
     ];
 
     const referenceChunks = await this.getReferenceChunks(dto.message);
-    const messages = this.groqChatClient.buildMessages(
+    const providerRoster = await this.getProviderRoster();
+    const messages = this.llmChatClient.buildMessages(
       transcript,
       referenceChunks,
+      providerRoster,
     );
     const result = await this.runConversationLoop(messages);
 
@@ -164,15 +174,25 @@ export class ChatService {
     for (let i = 0; i < MAX_TOOL_ROUNDTRIPS; i++) {
       let message: ChatCompletionMessage;
       try {
-        message = await this.groqChatClient.complete(messages);
+        message = await this.llmChatClient.complete(messages);
       } catch (err) {
         // A live LLM API call is an external dependency that can fail
         // transiently (rate limits, the model hallucinating a tool name
         // outside what was registered, network errors) — same
         // don't-crash-the-turn principle as getReferenceChunks() below.
+        // AllLlmKeysExhaustedError means LlmChatClient already tried
+        // every configured credential (see LlmKeyManager) — worth a
+        // distinct, less alarming reply than a generic failure.
+        // NoLlmCredentialsConfiguredError means Settings is empty.
         this.logger.warn(
-          `GroqChatClient.complete failed: ${(err as Error).message}`,
+          `LlmChatClient.complete failed: ${(err as Error).message}`,
         );
+        if (err instanceof NoLlmCredentialsConfiguredError) {
+          return { text: NO_CREDENTIALS_REPLY };
+        }
+        if (err instanceof AllLlmKeysExhaustedError) {
+          return { text: ALL_KEYS_EXHAUSTED_REPLY };
+        }
         return { text: LLM_UNAVAILABLE_REPLY };
       }
       const toolCalls = message.tool_calls ?? [];
@@ -217,6 +237,23 @@ export class ChatService {
     return `${CHAT_SESSION_PREFIX}${sessionId}`;
   }
 
+  /**
+   * Public — called from the post-booking star-rating modal in the chat
+   * UI, which has no admin session. Looked up by the chat sessionId
+   * (never the conversation's internal id, which the caller never sees)
+   * so a rating can only be attached to the conversation the rater was
+   * actually part of.
+   */
+  async rateConversation(sessionId: string, rating: number): Promise<void> {
+    const conversation = await this.conversationsService.findByCallSid(
+      this.toCallSid(sessionId),
+    );
+    if (!conversation) {
+      throw new NotFoundException(`No conversation for session ${sessionId}`);
+    }
+    await this.conversationsService.rate(conversation.id, rating);
+  }
+
   private async getReferenceChunks(message: string): Promise<string[]> {
     try {
       const matches = await this.knowledgeService.search(message);
@@ -227,6 +264,34 @@ export class ChatService {
       // should keep working without RAG context rather than fail the turn.
       this.logger.warn(
         `Knowledge retrieval unavailable: ${(err as Error).message}`,
+      );
+      return [];
+    }
+  }
+
+  /**
+   * Feeds the model the exact registered `service` string per active
+   * provider so it never has to guess/paraphrase one when calling
+   * find_available_slots or record_booking — service matching against the
+   * database is an exact string comparison, and a plausible-sounding
+   * paraphrase (e.g. "Orthopedics" for a provider registered as
+   * "Orthopedic") silently fails to match, reported to the caller as "no
+   * provider found" even though one genuinely exists.
+   */
+  private async getProviderRoster(): Promise<
+    { name: string; service: string }[]
+  > {
+    try {
+      const providers = await this.providersService.findAll();
+      return providers
+        .filter((provider) => provider.isActive)
+        .map((provider) => ({
+          name: provider.name,
+          service: provider.service,
+        }));
+    } catch (err) {
+      this.logger.warn(
+        `Provider roster unavailable: ${(err as Error).message}`,
       );
       return [];
     }

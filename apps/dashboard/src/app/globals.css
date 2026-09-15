@@ -99,33 +99,16 @@
   }
 }
 
-/* Medical/clinical chat theme (public /chat page) — a calm clinical-teal
-   wallpaper with a faint plus/cross motif instead of the WhatsApp dot
-   texture, and matching bubble tails. Uses the .dark class selector
-   (not prefers-color-scheme) so it follows the app's own light/dark/
-   system toggle, not just the OS setting. */
+/* Medical/clinical chat theme (public /chat page) — a plain calm
+   clinical-teal background behind the message bubbles. Uses the .dark
+   class selector (not prefers-color-scheme) so it follows the app's own
+   light/dark/system toggle, not just the OS setting. */
 .medical-wallpaper {
   background-color: #eef7fa;
-  background-image:
-    linear-gradient(rgba(14, 116, 144, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(14, 116, 144, 0.05) 1px, transparent 1px);
-  background-size: 22px 22px;
 }
 
 .dark .medical-wallpaper {
   background-color: #07171c;
-  background-image:
-    linear-gradient(rgba(94, 210, 235, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(94, 210, 235, 0.05) 1px, transparent 1px);
-}
-
-/* Home page hero — repeating medical-icon pattern behind the landing
-   content, dimmed with a translucent wash (in HomePage's own markup) so
-   the headline/cards stay legible on top of it. */
-.medical-pattern-bg {
-  background-image: url("/medical-pattern.jpg");
-  background-repeat: repeat;
-  background-size: 260px 260px;
 }
 
 .bubble-tail-med-out::after,
@@ -175,10 +158,10 @@
 @keyframes cta-glow {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(0, 128, 105, 0.45);
+    box-shadow: 0 0 0 0 rgba(14, 116, 144, 0.45);
   }
   50% {
-    box-shadow: 0 0 0 14px rgba(0, 128, 105, 0);
+    box-shadow: 0 0 0 14px rgba(14, 116, 144, 0);
   }
 }
 
@@ -186,73 +169,80 @@
   animation: cta-glow 2.2s ease-in-out infinite;
 }
 
+/* Design tokens — "Medlink"-inspired clinical teal theme (colors, shape)
+   applied app-wide via shadcn's CSS variables, so every component built
+   on top of bg-primary/bg-card/border-border/etc. picks it up for free
+   instead of needing a per-page reskin. The teal itself matches what the
+   public home/chat pages already established (#0e7490/#0891b2) rather
+   than the reference image's slightly different teal-green, so the whole
+   app reads as one consistent palette instead of two competing teals. */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --background: #f6f9fa;
+  --foreground: #0f2427;
+  --card: #ffffff;
+  --card-foreground: #0f2427;
+  --popover: #ffffff;
+  --popover-foreground: #0f2427;
+  --primary: #0e7490;
+  --primary-foreground: #ffffff;
+  --secondary: #e5f4f8;
+  --secondary-foreground: #0e7490;
+  --muted: #eef4f5;
+  --muted-foreground: #5c7278;
+  --accent: #e0f6f2;
+  --accent-foreground: #0b4a5c;
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --border: #e3ebed;
+  --input: #e3ebed;
+  --ring: #0891b2;
+  --chart-1: #0e7490;
+  --chart-2: #0891b2;
+  --chart-3: #22d3ee;
+  --chart-4: #5eead4;
+  --chart-5: #99f6e4;
+  --radius: 1rem;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0f2427;
+  --sidebar-primary: #0e7490;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e5f4f8;
+  --sidebar-accent-foreground: #0e7490;
+  --sidebar-border: #e3ebed;
+  --sidebar-ring: #0891b2;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  --background: #07171c;
+  --foreground: #eaf6f8;
+  --card: #0e2830;
+  --card-foreground: #eaf6f8;
+  --popover: #0e2830;
+  --popover-foreground: #eaf6f8;
+  --primary: #0891b2;
+  --primary-foreground: #04181c;
+  --secondary: #123a45;
+  --secondary-foreground: #bdeef8;
+  --muted: #123138;
+  --muted-foreground: #7fa3ab;
+  --accent: #123a45;
+  --accent-foreground: #bdeef8;
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --ring: #22d3ee;
+  --chart-1: #22d3ee;
+  --chart-2: #0891b2;
+  --chart-3: #0e7490;
+  --chart-4: #5eead4;
+  --chart-5: #99f6e4;
+  --sidebar: #0b232a;
+  --sidebar-foreground: #eaf6f8;
+  --sidebar-primary: #0891b2;
+  --sidebar-primary-foreground: #04181c;
+  --sidebar-accent: #123a45;
+  --sidebar-accent-foreground: #bdeef8;
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --sidebar-ring: #22d3ee;
 }
 
 @layer base {

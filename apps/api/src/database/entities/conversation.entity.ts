@@ -35,6 +35,13 @@ export class Conversation {
   @Column({ type: 'int', nullable: true, comment: 'duration in seconds' })
   duration?: number;
 
+  @Column({
+    type: 'int',
+    nullable: true,
+    comment: '1-5 star rating the caller gave this conversation',
+  })
+  rating?: number;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 }

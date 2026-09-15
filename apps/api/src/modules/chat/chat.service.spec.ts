@@ -7,7 +7,11 @@ import { ProvidersService } from '../providers/providers.service';
 import { addMinutes, combineDateAndDhakaTime } from '../providers/slot-math';
 import { ChatToolExecutor } from './chat-tool-executor';
 import { ChatService } from './chat.service';
-import { GroqChatClient } from './groq-chat.client';
+import {
+  AllLlmKeysExhaustedError,
+  NoLlmCredentialsConfiguredError,
+} from './llm-key-manager';
+import { LlmChatClient } from './llm-chat.client';
 
 const PROVIDER_ID = '11111111-1111-4111-8111-111111111111';
 
@@ -45,19 +49,20 @@ function toolCallMessage(
 
 describe('ChatService', () => {
   let service: ChatService;
-  let groqChatClient: { buildMessages: jest.Mock; complete: jest.Mock };
+  let llmChatClient: { buildMessages: jest.Mock; complete: jest.Mock };
   let chatToolExecutor: { findAvailableSlots: jest.Mock };
   let conversationsService: {
     findByCallSid: jest.Mock;
     create: jest.Mock;
     appendTurn: jest.Mock;
+    rate: jest.Mock;
   };
   let bookingsService: { create: jest.Mock };
-  let providersService: { findOne: jest.Mock };
+  let providersService: { findOne: jest.Mock; findAll: jest.Mock };
   let knowledgeService: { search: jest.Mock };
 
   beforeEach(async () => {
-    groqChatClient = {
+    llmChatClient = {
       buildMessages: jest.fn().mockReturnValue([]),
       complete: jest.fn(),
     };
@@ -66,15 +71,19 @@ describe('ChatService', () => {
       findByCallSid: jest.fn(),
       create: jest.fn(),
       appendTurn: jest.fn(),
+      rate: jest.fn(),
     };
     bookingsService = { create: jest.fn() };
-    providersService = { findOne: jest.fn() };
+    providersService = {
+      findOne: jest.fn(),
+      findAll: jest.fn().mockResolvedValue([]),
+    };
     knowledgeService = { search: jest.fn().mockResolvedValue([]) };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ChatService,
-        { provide: GroqChatClient, useValue: groqChatClient },
+        { provide: LlmChatClient, useValue: llmChatClient },
         { provide: ChatToolExecutor, useValue: chatToolExecutor },
         { provide: ConversationsService, useValue: conversationsService },
         { provide: BookingsService, useValue: bookingsService },
@@ -98,7 +107,7 @@ describe('ChatService', () => {
         });
       },
     );
-    groqChatClient.complete.mockResolvedValue(
+    llmChatClient.complete.mockResolvedValue(
       assistantMessage('Hi! What can I help you book today?'),
     );
 
@@ -117,7 +126,7 @@ describe('ChatService', () => {
       transcript: [{ role: 'user', text: 'earlier message' }],
       bookingId: undefined,
     });
-    groqChatClient.complete.mockResolvedValue(assistantMessage('Got it.'));
+    llmChatClient.complete.mockResolvedValue(assistantMessage('Got it.'));
 
     await service.sendMessage({
       sessionId: 'session-1',
@@ -128,11 +137,12 @@ describe('ChatService', () => {
       'chat-session-1',
     );
     expect(conversationsService.create).not.toHaveBeenCalled();
-    expect(groqChatClient.buildMessages).toHaveBeenCalledWith(
+    expect(llmChatClient.buildMessages).toHaveBeenCalledWith(
       [
         { role: 'user', text: 'earlier message' },
         { role: 'user', text: 'Hello again' },
       ],
+      [],
       [],
     );
   });
@@ -146,7 +156,7 @@ describe('ChatService', () => {
     knowledgeService.search.mockResolvedValue([
       { source: 'faq.md', content: 'We are open 9-5.', similarity: 0.9 },
     ]);
-    groqChatClient.complete.mockResolvedValue(
+    llmChatClient.complete.mockResolvedValue(
       assistantMessage('We are open 9-5.'),
     );
 
@@ -155,9 +165,10 @@ describe('ChatService', () => {
     expect(knowledgeService.search).toHaveBeenCalledWith(
       'What are your hours?',
     );
-    expect(groqChatClient.buildMessages).toHaveBeenCalledWith(
+    expect(llmChatClient.buildMessages).toHaveBeenCalledWith(
       expect.any(Array),
       ['We are open 9-5.'],
+      [],
     );
   });
 
@@ -170,13 +181,14 @@ describe('ChatService', () => {
     knowledgeService.search.mockRejectedValue(
       new Error('relation "knowledge_chunks" does not exist'),
     );
-    groqChatClient.complete.mockResolvedValue(assistantMessage('Hi there!'));
+    llmChatClient.complete.mockResolvedValue(assistantMessage('Hi there!'));
 
     const result = await service.sendMessage({ message: 'Hello' });
 
     expect(result.reply).toBe('Hi there!');
-    expect(groqChatClient.buildMessages).toHaveBeenCalledWith(
+    expect(llmChatClient.buildMessages).toHaveBeenCalledWith(
       expect.any(Array),
+      [],
       [],
     );
   });
@@ -187,7 +199,7 @@ describe('ChatService', () => {
       transcript: null,
       bookingId: undefined,
     });
-    groqChatClient.complete.mockResolvedValue(
+    llmChatClient.complete.mockResolvedValue(
       toolCallMessage('record_booking', validBookingInput),
     );
     providersService.findOne.mockResolvedValue({
@@ -226,7 +238,7 @@ describe('ChatService', () => {
       transcript: null,
       bookingId: undefined,
     });
-    groqChatClient.complete.mockResolvedValue(
+    llmChatClient.complete.mockResolvedValue(
       toolCallMessage('record_booking', { name: 'Jane Doe' }), // missing required fields
     );
 
@@ -237,13 +249,34 @@ describe('ChatService', () => {
     expect(result.reply.length).toBeGreaterThan(0);
   });
 
+  it('passes the active provider roster through to buildMessages, for exact service-string grounding', async () => {
+    conversationsService.create.mockResolvedValue({
+      id: 'conv-1',
+      transcript: null,
+      bookingId: undefined,
+    });
+    providersService.findAll.mockResolvedValue([
+      { name: 'Dr. Imam Hassan', service: 'Orthopedic', isActive: true },
+      { name: 'Dr. Retired', service: 'Cardiology', isActive: false },
+    ]);
+    llmChatClient.complete.mockResolvedValue(assistantMessage('Hi there!'));
+
+    await service.sendMessage({ message: 'Hello' });
+
+    expect(llmChatClient.buildMessages).toHaveBeenCalledWith(
+      expect.any(Array),
+      [],
+      [{ name: 'Dr. Imam Hassan', service: 'Orthopedic' }],
+    );
+  });
+
   it('replies gracefully instead of crashing the turn when the Groq API call itself fails', async () => {
     conversationsService.create.mockResolvedValue({
       id: 'conv-1',
       transcript: null,
       bookingId: undefined,
     });
-    groqChatClient.complete.mockRejectedValue(
+    llmChatClient.complete.mockRejectedValue(
       new Error(
         "Tool call validation failed: attempted to call tool 'collect_name' which was not in request.tools",
       ),
@@ -256,13 +289,45 @@ describe('ChatService', () => {
     expect(conversationsService.appendTurn).toHaveBeenCalled();
   });
 
+  it('replies with a reassuring message instead of a raw error when every configured LLM key is rate-limited', async () => {
+    conversationsService.create.mockResolvedValue({
+      id: 'conv-1',
+      transcript: null,
+      bookingId: undefined,
+    });
+    llmChatClient.complete.mockRejectedValue(new AllLlmKeysExhaustedError());
+
+    const result = await service.sendMessage({ message: 'Hello' });
+
+    expect(result.reply).toMatch(/give me a moment/i);
+    expect(result.bookingCreated).toBe(false);
+    expect(conversationsService.appendTurn).toHaveBeenCalled();
+  });
+
+  it('tells the caller the assistant is not set up yet when no LLM credential is configured', async () => {
+    conversationsService.create.mockResolvedValue({
+      id: 'conv-1',
+      transcript: null,
+      bookingId: undefined,
+    });
+    llmChatClient.complete.mockRejectedValue(
+      new NoLlmCredentialsConfiguredError(),
+    );
+
+    const result = await service.sendMessage({ message: 'Hello' });
+
+    expect(result.reply).toMatch(/admin needs to add an api key/i);
+    expect(result.bookingCreated).toBe(false);
+    expect(conversationsService.appendTurn).toHaveBeenCalled();
+  });
+
   it('runs the find_available_slots round trip before producing a final reply', async () => {
     conversationsService.create.mockResolvedValue({
       id: 'conv-1',
       transcript: null,
       bookingId: undefined,
     });
-    groqChatClient.complete
+    llmChatClient.complete
       .mockResolvedValueOnce(
         toolCallMessage(
           'find_available_slots',
@@ -288,7 +353,7 @@ describe('ChatService', () => {
     expect(chatToolExecutor.findAvailableSlots).toHaveBeenCalledWith({
       service: 'Consulting',
     });
-    expect(groqChatClient.complete).toHaveBeenCalledTimes(2);
+    expect(llmChatClient.complete).toHaveBeenCalledTimes(2);
     expect(result.reply).toBe('We have Friday 2pm open — does that work?');
     expect(result.bookingCreated).toBe(false);
   });
@@ -299,7 +364,7 @@ describe('ChatService', () => {
       transcript: null,
       bookingId: undefined,
     });
-    groqChatClient.complete.mockResolvedValue(
+    llmChatClient.complete.mockResolvedValue(
       toolCallMessage('find_available_slots', { service: 'Consulting' }),
     );
     chatToolExecutor.findAvailableSlots.mockResolvedValue({
@@ -310,7 +375,7 @@ describe('ChatService', () => {
       message: 'What times are open?',
     });
 
-    expect(groqChatClient.complete).toHaveBeenCalledTimes(4);
+    expect(llmChatClient.complete).toHaveBeenCalledTimes(4);
     expect(result.reply).toMatch(/trouble checking availability/i);
   });
 
@@ -320,7 +385,7 @@ describe('ChatService', () => {
       transcript: null,
       bookingId: undefined,
     });
-    groqChatClient.complete.mockResolvedValue(
+    llmChatClient.complete.mockResolvedValue(
       toolCallMessage('record_booking', validBookingInput),
     );
     providersService.findOne.mockRejectedValue(new NotFoundException());
@@ -338,7 +403,7 @@ describe('ChatService', () => {
       transcript: null,
       bookingId: undefined,
     });
-    groqChatClient.complete.mockResolvedValue(
+    llmChatClient.complete.mockResolvedValue(
       toolCallMessage('record_booking', validBookingInput),
     );
     providersService.findOne.mockResolvedValue({
@@ -351,5 +416,27 @@ describe('ChatService', () => {
 
     expect(result.bookingCreated).toBe(false);
     expect(result.reply).toMatch(/just booked by someone else/i);
+  });
+
+  describe('rateConversation', () => {
+    it('rates the conversation matching the given sessionId', async () => {
+      conversationsService.findByCallSid.mockResolvedValue({ id: 'conv-1' });
+
+      await service.rateConversation('session-1', 5);
+
+      expect(conversationsService.findByCallSid).toHaveBeenCalledWith(
+        'chat-session-1',
+      );
+      expect(conversationsService.rate).toHaveBeenCalledWith('conv-1', 5);
+    });
+
+    it('throws NotFoundException when no conversation matches the sessionId', async () => {
+      conversationsService.findByCallSid.mockResolvedValue(null);
+
+      await expect(
+        service.rateConversation('unknown-session', 4),
+      ).rejects.toThrow(NotFoundException);
+      expect(conversationsService.rate).not.toHaveBeenCalled();
+    });
   });
 });

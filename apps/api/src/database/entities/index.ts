@@ -4,5 +4,6 @@ export * from './call-session.entity';
 export * from './provider.entity';
 export * from './provider-availability.entity';
 export * from './provider-google-account.entity';
+export * from './llm-credential.entity';
 export * from './booking-status.enum';
 export * from './call-status.enum';

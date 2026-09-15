@@ -78,6 +78,7 @@ export default function BookingsPage() {
   const [editForm, setEditForm] = useState<EditForm | null>(null);
   const [saving, setSaving] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Booking | null>(null);
 
   function load() {
     Promise.all([
@@ -95,7 +96,7 @@ export default function BookingsPage() {
 
   const providerName = useMemo(() => {
     const map = new Map(providers.map((p) => [p.id, p.name]));
-    return (id?: string) => (id ? (map.get(id) ?? "Unknown provider") : "—");
+    return (id?: string) => (id ? (map.get(id) ?? "Unknown doctor") : "—");
   }, [providers]);
 
   const filtered = useMemo(() => {
@@ -143,12 +144,12 @@ export default function BookingsPage() {
     }
   }
 
-  async function handleDelete(b: Booking) {
-    if (!confirm(`Delete the booking for "${b.name}"? This cannot be undone.`))
-      return;
-    setBusyId(b.id);
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    setBusyId(deleteTarget.id);
     try {
-      await apiFetch(`/bookings/${b.id}`, { method: "DELETE" });
+      await apiFetch(`/bookings/${deleteTarget.id}`, { method: "DELETE" });
+      setDeleteTarget(null);
       load();
     } catch (err) {
       setError((err as Error).message);
@@ -211,7 +212,7 @@ export default function BookingsPage() {
                     <TableHead>Name</TableHead>
                     <TableHead>Contact</TableHead>
                     <TableHead>Service</TableHead>
-                    <TableHead>Provider</TableHead>
+                    <TableHead>Doctor</TableHead>
                     <TableHead>Scheduled</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Created</TableHead>
@@ -260,7 +261,7 @@ export default function BookingsPage() {
                             size="icon-sm"
                             aria-label="Delete booking"
                             disabled={busyId === b.id}
-                            onClick={() => handleDelete(b)}
+                            onClick={() => setDeleteTarget(b)}
                             className="text-destructive hover:text-destructive"
                           >
                             <Trash2 />
@@ -358,6 +359,38 @@ export default function BookingsPage() {
               </DialogFooter>
             </form>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete booking</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Delete the booking for{" "}
+            <span className="font-medium text-foreground">
+              {deleteTarget?.name}
+            </span>
+            ? This cannot be undone.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={busyId === deleteTarget?.id}
+              onClick={confirmDelete}
+            >
+              {busyId === deleteTarget?.id ? "Deleting…" : "Delete"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

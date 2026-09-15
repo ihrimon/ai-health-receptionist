@@ -9,17 +9,26 @@ export default () => ({
     username: process.env.POSTGRES_USER ?? 'brainstack',
     password: process.env.POSTGRES_PASSWORD ?? 'brainstack',
     name: process.env.POSTGRES_DB ?? 'brainstack_booking',
+    // Managed free-tier Postgres (Neon, Supabase, etc.) requires TLS and
+    // usually can't present a cert the default Node trust store
+    // recognizes — set POSTGRES_SSL=true for those; leave unset for a
+    // local/Docker Postgres with no TLS at all.
+    ssl: process.env.POSTGRES_SSL === 'true',
   },
 
   redis: {
     host: process.env.REDIS_HOST ?? 'localhost',
     port: parseInt(process.env.REDIS_PORT ?? '6379', 10),
+    // Managed free-tier Redis (Upstash, Redis Cloud, etc.) requires a
+    // password and TLS; a local/Docker Redis typically has neither.
+    password: process.env.REDIS_PASSWORD || undefined,
+    tls: process.env.REDIS_TLS === 'true',
   },
 
-  groq: {
-    apiKey: process.env.GROQ_API_KEY ?? '',
-    model: process.env.GROQ_MODEL ?? 'openai/gpt-oss-20b',
-  },
+  // LLM API key(s) + model are no longer read from env — they're managed
+  // at runtime via the admin Settings page (llm_credentials table,
+  // LlmCredentialsService/LlmKeyManager) so they can be edited without a
+  // redeploy and aren't tied to a single provider like Groq.
 
   knowledge: {
     embeddingModel:

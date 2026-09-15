@@ -75,9 +75,13 @@ export class AvailabilityService {
     dateFrom: string,
     dateTo: string,
   ): Promise<ProviderSlots | null> {
-    const candidates = await this.providersRepository.find({
-      where: { service, isActive: true },
-    });
+    const candidates = await this.providersRepository
+      .createQueryBuilder('provider')
+      .where('LOWER(TRIM(provider.service)) = LOWER(TRIM(:service))', {
+        service,
+      })
+      .andWhere('provider.isActive = true')
+      .getMany();
 
     for (const provider of candidates) {
       const slots = await this.computeSlotsForProvider(

@@ -48,4 +48,10 @@ export class ConversationsService {
     Object.assign(conversation, partial);
     return this.conversationsRepository.save(conversation);
   }
+
+  async rate(id: string, rating: number): Promise<Conversation> {
+    const conversation = await this.findOne(id);
+    conversation.rating = rating;
+    return this.conversationsRepository.save(conversation);
+  }
 }

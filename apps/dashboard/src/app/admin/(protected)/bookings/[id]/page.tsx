@@ -133,7 +133,7 @@ export default function BookingDetailPage() {
             <Field label="Service" value={booking.service} />
             {booking.budget && <Field label="Budget" value={booking.budget} />}
             <Field
-              label="Provider"
+              label="Doctor"
               value={provider ? `${provider.name} (${provider.service})` : "Not assigned"}
             />
             <Field

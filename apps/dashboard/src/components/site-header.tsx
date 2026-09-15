@@ -7,9 +7,10 @@ import { ModeToggle } from "@/components/mode-toggle";
 
 const TITLES: { prefix: string; title: string }[] = [
   { prefix: "/admin/bookings", title: "Bookings" },
-  { prefix: "/admin/providers", title: "Providers" },
+  { prefix: "/admin/doctors", title: "Doctors" },
   { prefix: "/admin/conversations", title: "Conversations" },
   { prefix: "/admin/calls", title: "Call History" },
+  { prefix: "/admin/settings", title: "Settings" },
 ];
 
 function titleFor(pathname: string): string {

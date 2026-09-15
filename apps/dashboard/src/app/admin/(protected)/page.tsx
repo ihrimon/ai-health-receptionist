@@ -71,11 +71,11 @@ export default function AdminOverviewPage() {
       href: "/admin/bookings",
     },
     {
-      title: "Active Providers",
+      title: "Active Doctors",
       value: activeProviders,
       description: providers ? `${providers.length} total` : undefined,
       icon: Stethoscope,
-      href: "/admin/providers",
+      href: "/admin/doctors",
     },
     {
       title: "Conversations",
@@ -112,14 +112,16 @@ export default function AdminOverviewPage() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {stats.map((s) => (
           <Link key={s.title} href={s.href}>
-            <Card className="transition-colors hover:border-foreground/30">
+            <Card className="transition-colors hover:border-primary/40">
               <CardHeader>
                 <CardDescription>{s.title}</CardDescription>
                 <CardTitle className="text-2xl font-semibold tabular-nums">
                   {s.value ?? "—"}
                 </CardTitle>
                 <CardAction>
-                  <s.icon className="size-4 text-muted-foreground" />
+                  <div className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+                    <s.icon className="size-4.5" />
+                  </div>
                 </CardAction>
               </CardHeader>
               {s.description && (

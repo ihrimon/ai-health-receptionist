@@ -4,14 +4,27 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   CalendarClock,
+  ChevronsUpDown,
   Gauge,
   Headset,
   LogOut,
   MessageCircle,
   MessagesSquare,
   PhoneCall,
+  Settings,
   Stethoscope,
 } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Sidebar,
   SidebarContent,
@@ -24,13 +37,13 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { API_URL } from "@/lib/api";
+import { API_URL, clearDashboardSession } from "@/lib/api";
 
 const NAV_ITEMS = [
   { title: "Overview", href: "/admin", icon: Gauge },
   { title: "Chat", href: "/chat", icon: MessageCircle },
   { title: "Bookings", href: "/admin/bookings", icon: CalendarClock },
-  { title: "Providers", href: "/admin/providers", icon: Stethoscope },
+  { title: "Doctors", href: "/admin/doctors", icon: Stethoscope },
   { title: "Conversations", href: "/admin/conversations", icon: MessagesSquare },
   { title: "Call History", href: "/admin/calls", icon: PhoneCall },
 ];
@@ -44,6 +57,7 @@ export function AppSidebar() {
       method: "POST",
       credentials: "include",
     }).catch(() => {});
+    clearDashboardSession();
     router.push("/admin/login");
     router.refresh();
   }
@@ -105,10 +119,48 @@ export function AppSidebar() {
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Log out" onClick={handleLogout}>
-              <LogOut />
-              <span>Log out</span>
-            </SidebarMenuButton>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    className="h-12 w-full justify-start gap-2 px-2 text-left font-normal group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:px-0"
+                  >
+                    <Avatar className="size-7 shrink-0 rounded-lg">
+                      <AvatarFallback className="rounded-lg bg-primary text-primary-foreground">
+                        A
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
+                      <span className="truncate font-medium">Admin</span>
+                    </span>
+                    <ChevronsUpDown className="ml-auto size-4 shrink-0 group-data-[collapsible=icon]:hidden" />
+                  </Button>
+                }
+              />
+              <DropdownMenuContent side="top" align="start" className="w-56">
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>Admin</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    render={
+                      <Link href="/admin/settings">
+                        <Settings />
+                        Settings
+                      </Link>
+                    }
+                  />
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={handleLogout}
+                >
+                  <LogOut />
+                  Log out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>

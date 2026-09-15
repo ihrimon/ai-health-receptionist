@@ -5,6 +5,7 @@ import {
   Booking,
   CallSession,
   Conversation,
+  LlmCredential,
   Provider,
   ProviderAvailability,
   ProviderGoogleAccount,
@@ -21,6 +22,9 @@ import {
         username: config.get<string>('database.username'),
         password: config.get<string>('database.password'),
         database: config.get<string>('database.name'),
+        ssl: config.get<boolean>('database.ssl')
+          ? { rejectUnauthorized: false }
+          : false,
         entities: [
           Booking,
           Conversation,
@@ -28,6 +32,7 @@ import {
           Provider,
           ProviderAvailability,
           ProviderGoogleAccount,
+          LlmCredential,
         ],
         // Phase 1 (dev only): auto-sync schema from entities.
         // Replace with the SQL migrations in packages/database once the schema stabilizes.

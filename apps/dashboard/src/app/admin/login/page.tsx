@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { API_URL } from "@/lib/api";
+import { API_URL, markDashboardSession } from "@/lib/api";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -31,6 +31,7 @@ export default function AdminLoginPage() {
           res.status === 401 ? "Incorrect password." : `Login failed (${res.status}).`,
         );
       }
+      markDashboardSession();
       router.push("/admin");
       router.refresh();
     } catch (err) {

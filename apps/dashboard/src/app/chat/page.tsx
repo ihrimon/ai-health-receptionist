@@ -8,7 +8,7 @@ import {
   type FormEvent,
 } from "react";
 import Link from "next/link";
-import { Stethoscope } from "lucide-react";
+import { Star, Stethoscope, X } from "lucide-react";
 
 function subscribeNever() {
   return () => {};
@@ -45,6 +45,18 @@ interface ChatApiResponse {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
+// Persisted to sessionStorage (not localStorage) so an in-progress
+// conversation survives navigating to another route and back within the
+// same tab, but doesn't linger forever once the tab is closed.
+const STORAGE_KEY = "brainstack-chat-session";
+
+const GREETING: ChatMessage = {
+  id: "greeting",
+  role: "model",
+  text: "Hi, thanks for reaching out to BrainStack! I can help you book an appointment with one of our doctors. What brings you in today?",
+  timestamp: Date.now(),
+};
+
 function formatTime(ts: number) {
   return new Date(ts).toLocaleTimeString([], {
     hour: "2-digit",
@@ -61,20 +73,20 @@ function formatDuration(totalSeconds: number) {
 }
 
 export default function ChatPage() {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: "greeting",
-      role: "model",
-      text: "Hi, thanks for reaching out to BrainStack! I can help you book an appointment with one of our doctors. What brings you in today?",
-      timestamp: Date.now(),
-    },
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>([GREETING]);
   const [sessionId, setSessionId] = useState<string | undefined>(undefined);
+  // Guards against the restore-from-storage effect (below) racing the
+  // persist-to-storage effect and overwriting a saved conversation with
+  // the default greeting before the restore has had a chance to run.
+  const hasRestoredRef = useRef(false);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [autoSpeak, setAutoSpeak] = useState(false);
   const [speakingId, setSpeakingId] = useState<string | null>(null);
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [ratingPromptDone, setRatingPromptDone] = useState(false);
+  const [submittingRating, setSubmittingRating] = useState(false);
 
   const [isRecording, setIsRecording] = useState(false);
   const [recordSeconds, setRecordSeconds] = useState(0);
@@ -98,6 +110,56 @@ export default function ChatPage() {
     getSpeechSupportSnapshot,
     getSpeechSupportServerSnapshot,
   );
+
+  // Restore an in-progress conversation (if any) once on mount — this is
+  // what keeps the chat alive when the user navigates to another route
+  // and back before a booking is confirmed, instead of losing it. This
+  // has to be an effect + setState, not a lazy useState initializer or
+  // useSyncExternalStore: the restored value is a one-time seed for
+  // otherwise-independent local state (subsequent sends evolve it, they
+  // don't keep reading sessionStorage), and reading sessionStorage
+  // during the initializer would desync SSR vs. the client's first
+  // paint (same hydration hazard `speechSupported` above avoids) since
+  // this route is server-rendered. The lint rule's cascading-render
+  // concern doesn't apply here — this runs at most once, only when
+  // there's something to restore.
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const saved = JSON.parse(raw) as {
+          messages?: ChatMessage[];
+          sessionId?: string;
+          ratingPromptDone?: boolean;
+        };
+        if (Array.isArray(saved.messages) && saved.messages.length > 0) {
+          // eslint-disable-next-line react-hooks/set-state-in-effect
+          setMessages(saved.messages);
+        }
+        if (saved.sessionId) setSessionId(saved.sessionId);
+        if (saved.ratingPromptDone) setRatingPromptDone(true);
+      }
+    } catch {
+      // Corrupt or unavailable storage — fall back to the fresh greeting.
+    }
+    hasRestoredRef.current = true;
+  }, []);
+
+  // Persist after every change, once the restore above has run (so this
+  // doesn't fire first and clobber a saved conversation with the initial
+  // greeting before restore gets a chance to load it).
+  useEffect(() => {
+    if (!hasRestoredRef.current) return;
+    try {
+      sessionStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ messages, sessionId, ratingPromptDone }),
+      );
+    } catch {
+      // Storage full/unavailable (e.g. private browsing) — non-fatal,
+      // the conversation just won't survive navigation this time.
+    }
+  }, [messages, sessionId, ratingPromptDone]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -161,6 +223,9 @@ export default function ChatPage() {
         },
       ]);
       if (autoSpeak) speak(replyId, data.reply);
+      if (data.bookingCreated && !ratingPromptDone) {
+        setShowRatingModal(true);
+      }
     } catch {
       setError(
         "Couldn't reach the clinic assistant. Is the API running and is GROQ_API_KEY set?",
@@ -173,6 +238,30 @@ export default function ChatPage() {
   function handleTextSubmit(e: FormEvent) {
     e.preventDefault();
     submitMessage(input);
+  }
+
+  function dismissRatingModal() {
+    setShowRatingModal(false);
+    setRatingPromptDone(true);
+  }
+
+  async function submitRating(rating: number) {
+    if (!sessionId || submittingRating) return;
+    setSubmittingRating(true);
+    try {
+      await fetch(`${API_URL}/chat/${sessionId}/rating`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rating }),
+      });
+    } catch {
+      // Best-effort — the caller has already given their rating and closed
+      // the modal either way, no need to surface a network hiccup here.
+    } finally {
+      setSubmittingRating(false);
+      setShowRatingModal(false);
+      setRatingPromptDone(true);
+    }
   }
 
   function speak(id: string, text: string) {
@@ -449,6 +538,88 @@ export default function ChatPage() {
             </form>
           )}
         </div>
+      </div>
+
+      {showRatingModal && (
+        <RatingModal
+          submitting={submittingRating}
+          onRate={submitRating}
+          onDismiss={dismissRatingModal}
+        />
+      )}
+    </div>
+  );
+}
+
+function RatingModal({
+  submitting,
+  onRate,
+  onDismiss,
+}: {
+  submitting: boolean;
+  onRate: (rating: number) => void;
+  onDismiss: () => void;
+}) {
+  const [hovered, setHovered] = useState(0);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onClick={onDismiss}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Rate this conversation"
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-lg dark:bg-[#0e2830]"
+      >
+        <button
+          type="button"
+          onClick={onDismiss}
+          aria-label="Close"
+          className="float-right -mr-2 -mt-2 rounded-full p-1.5 text-gray-400 hover:bg-black/5 hover:text-gray-600 dark:hover:bg-white/10 dark:hover:text-gray-200"
+        >
+          <X className="size-4" />
+        </button>
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#e6f6fa] dark:bg-[#123a45]">
+          <Stethoscope className="size-6 text-[#0891b2]" />
+        </div>
+        <h2 className="mt-3 text-base font-semibold text-gray-900 dark:text-white">
+          Your appointment is booked!
+        </h2>
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+          How was this conversation with our assistant?
+        </p>
+        <div className="mt-4 flex items-center justify-center gap-1.5">
+          {[1, 2, 3, 4, 5].map((star) => (
+            <button
+              key={star}
+              type="button"
+              disabled={submitting}
+              onClick={() => onRate(star)}
+              onMouseEnter={() => setHovered(star)}
+              onMouseLeave={() => setHovered(0)}
+              aria-label={`Rate ${star} star${star > 1 ? "s" : ""}`}
+              className="p-1 disabled:opacity-50"
+            >
+              <Star
+                className={`size-7 transition-colors ${
+                  star <= hovered
+                    ? "fill-[#f5a524] text-[#f5a524]"
+                    : "fill-transparent text-gray-300 dark:text-gray-600"
+                }`}
+              />
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="mt-5 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+        >
+          Skip for now
+        </button>
       </div>
     </div>
   );

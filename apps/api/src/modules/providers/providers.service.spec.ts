@@ -108,7 +108,7 @@ describe('ProvidersService', () => {
         { name: 'Dr. Unknown' },
       );
       expect(queryBuilder.andWhere).toHaveBeenCalledWith(
-        'provider.service = :service',
+        'LOWER(TRIM(provider.service)) = LOWER(TRIM(:service))',
         { service: 'Dentistry' },
       );
       expect(queryBuilder.andWhere).toHaveBeenCalledWith(

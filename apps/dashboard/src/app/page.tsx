@@ -39,11 +39,9 @@ const FEATURES = [
 
 export default function HomePage() {
   return (
-    <div className="medical-pattern-bg relative flex min-h-0 flex-1 flex-col overflow-y-auto">
-      <div className="absolute inset-0 bg-white/60 dark:bg-slate-950/75" />
-
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-y-auto bg-background">
       <div className="relative z-10 mx-auto flex w-full max-w-3xl flex-1 flex-col items-center px-6 py-16 text-center sm:py-20">
-        <div className="mb-6 flex size-14 items-center justify-center rounded-2xl bg-[#008069] text-white shadow-sm">
+        <div className="mb-6 flex size-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm">
           <Stethoscope className="size-7" />
         </div>
 
@@ -61,7 +59,7 @@ export default function HomePage() {
           <Button
             size="lg"
             nativeButton={false}
-            className="cta-glow group rounded-full bg-[#008069] px-8 text-base transition-transform hover:scale-105 hover:bg-[#006e59]"
+            className="cta-glow group rounded-full bg-primary px-8 text-base text-primary-foreground transition-transform hover:scale-105 hover:bg-primary/90"
             render={
               <Link href="/chat">
                 <MessageCircle />
@@ -76,7 +74,7 @@ export default function HomePage() {
           {FEATURES.map((f) => (
             <Card key={f.title} className="text-left">
               <CardContent className="flex items-start gap-3">
-                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#008069]/10 text-[#008069] dark:bg-[#008069]/20">
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary dark:bg-primary/20">
                   <f.icon className="size-4.5" />
                 </div>
                 <div>
@@ -94,7 +92,7 @@ export default function HomePage() {
       <footer className="relative z-10 pb-4 text-center">
         <Link
           href="/admin"
-          className="text-black/25 hover:text-black/50 dark:text-white/25 dark:hover:text-white/50"
+          className="text-muted-foreground/50 hover:text-muted-foreground"
         >
           Admin
         </Link>

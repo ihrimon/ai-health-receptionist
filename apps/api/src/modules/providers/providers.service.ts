@@ -56,7 +56,9 @@ export class ProvidersService {
     return this.providersRepository
       .createQueryBuilder('provider')
       .where('LOWER(provider.name) = LOWER(:name)', { name })
-      .andWhere('provider.service = :service', { service })
+      .andWhere('LOWER(TRIM(provider.service)) = LOWER(TRIM(:service))', {
+        service,
+      })
       .andWhere('provider.isActive = true')
       .getMany();
   }

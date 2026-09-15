@@ -9,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { apiFetch, formatDateTime, type Conversation } from "@/lib/api";
 
@@ -72,6 +73,15 @@ export default function ConversationsPage() {
                       className="border-transparent bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"
                     >
                       Booking created
+                    </Badge>
+                  )}
+                  {c.rating && (
+                    <Badge
+                      variant="outline"
+                      className="gap-0.5 border-transparent bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
+                    >
+                      <Star className="size-3 fill-current" />
+                      {c.rating}/5
                     </Badge>
                   )}
                 </div>

@@ -151,7 +151,7 @@ export default function ProvidersPage() {
   async function handleDelete(p: Provider) {
     if (
       !confirm(
-        `Delete provider "${p.name}"? Their bookings will be unassigned, not deleted.`,
+        `Delete doctor "${p.name}"? Their bookings will be unassigned, not deleted.`,
       )
     )
       return;
@@ -170,7 +170,7 @@ export default function ProvidersPage() {
     <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
       <Card>
         <CardHeader>
-          <CardTitle>Providers</CardTitle>
+          <CardTitle>Doctors</CardTitle>
           <CardDescription>
             {providers ? `${providers.length} total` : "Loading…"}
           </CardDescription>
@@ -179,19 +179,19 @@ export default function ProvidersPage() {
               <DialogTrigger
                 render={
                   <Button>
-                    <Plus /> New provider
+                    <Plus /> New doctor
                   </Button>
                 }
               />
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>New provider</DialogTitle>
+                  <DialogTitle>New doctor</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleCreate} className="grid gap-3">
                   <ProviderFormFields form={createForm} setForm={setCreateForm} />
                   <DialogFooter>
                     <Button type="submit" disabled={saving}>
-                      {saving ? "Saving…" : "Create provider"}
+                      {saving ? "Saving…" : "Create doctor"}
                     </Button>
                   </DialogFooter>
                 </form>
@@ -207,7 +207,7 @@ export default function ProvidersPage() {
           )}
           {providers && providers.length === 0 && (
             <p className="text-sm text-muted-foreground">
-              No providers yet — add one to start scheduling.
+              No doctors yet — add one to start scheduling.
             </p>
           )}
 
@@ -230,7 +230,7 @@ export default function ProvidersPage() {
                     <TableRow key={p.id}>
                       <TableCell>
                         <Link
-                          href={`/admin/providers/${p.id}`}
+                          href={`/admin/doctors/${p.id}`}
                           className="font-medium hover:underline"
                         >
                           {p.name}
@@ -264,7 +264,7 @@ export default function ProvidersPage() {
                           <Button
                             variant="ghost"
                             size="icon-sm"
-                            aria-label="Edit provider"
+                            aria-label="Edit doctor"
                             onClick={() => openEdit(p)}
                           >
                             <Pencil />
@@ -272,7 +272,7 @@ export default function ProvidersPage() {
                           <Button
                             variant="ghost"
                             size="icon-sm"
-                            aria-label="Delete provider"
+                            aria-label="Delete doctor"
                             disabled={busyId === p.id}
                             onClick={() => handleDelete(p)}
                             className="text-destructive hover:text-destructive"
@@ -301,7 +301,7 @@ export default function ProvidersPage() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit provider</DialogTitle>
+            <DialogTitle>Edit doctor</DialogTitle>
           </DialogHeader>
           {editForm && (
             <form onSubmit={handleSaveEdit} className="grid gap-3">

@@ -13,6 +13,9 @@ async function main() {
     user: process.env.POSTGRES_USER ?? 'brainstack',
     password: process.env.POSTGRES_PASSWORD ?? 'brainstack',
     database: process.env.POSTGRES_DB ?? 'brainstack_booking',
+    // Managed free-tier Postgres (Neon, Supabase, etc.) requires TLS —
+    // set POSTGRES_SSL=true when running this against one of those.
+    ssl: process.env.POSTGRES_SSL === 'true' ? { rejectUnauthorized: false } : false,
   });
 
   await client.connect();

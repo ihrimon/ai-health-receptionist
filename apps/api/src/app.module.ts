@@ -13,6 +13,7 @@ import { VoiceModule } from './modules/voice/voice.module';
 import { ChatModule } from './modules/chat/chat.module';
 import { ProvidersModule } from './modules/providers/providers.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { LlmCredentialsModule } from './modules/llm-credentials/llm-credentials.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { AuthModule } from './modules/auth/auth.module';
     ChatModule,
     ProvidersModule,
     AuthModule,
+    LlmCredentialsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
