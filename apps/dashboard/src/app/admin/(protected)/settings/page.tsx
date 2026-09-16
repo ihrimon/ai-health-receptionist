@@ -46,12 +46,19 @@ import {
 } from "@/lib/api";
 
 // Groq and Gemini both offer a genuinely free, ongoing API tier (rate
-// limited, but no card required). OpenAI and Anthropic don't have a
-// standing free tier for API access — labeled here so picking a provider
-// doesn't come as a billing surprise later.
+// limited, but no card required). OpenRouter and UnoRouter are
+// OpenAI-compatible aggregators whose ":free"-suffixed models are also
+// free, no card required (OpenRouter: 20 req/min, 50/day without any
+// credit purchase; UnoRouter: ~1 req/min per model, tighter — better as
+// a last-resort fallback in the rotation order than a primary key).
+// OpenAI and Anthropic don't have a standing free tier for API access —
+// labeled here so picking a provider doesn't come as a billing surprise
+// later.
 const PROVIDERS: { value: LlmProvider; label: string; free: boolean }[] = [
   { value: "groq", label: "Groq", free: true },
   { value: "gemini", label: "Google (Gemini)", free: true },
+  { value: "openrouter", label: "OpenRouter", free: true },
+  { value: "unorouter", label: "UnoRouter", free: true },
   { value: "openai", label: "OpenAI", free: false },
   { value: "anthropic", label: "Anthropic (Claude)", free: false },
 ];
@@ -75,6 +82,24 @@ const MODELS_BY_PROVIDER: Record<LlmProvider, string[]> = {
     "claude-fable-5-1",
   ],
   gemini: ["gemini-3.6-flash", "gemini-3.6-pro", "gemini-flash-latest"],
+  // Free-model catalogs change often on both aggregators — "Custom…" is
+  // the reliable way to use whatever's currently free on their site;
+  // these are just a starting point confirmed live at the time this was
+  // written. The Settings page verifies the exact id against the real
+  // provider on save, so a stale/renamed one here just needs picking
+  // "Custom…" with the current id from openrouter.ai/models or
+  // unorouter.com/en/models instead of silently breaking chat later.
+  openrouter: [
+    "inclusionai/ling-3.0-flash-vl:free",
+    "nex-agi/nex-n2.5-mini:free",
+    "nex-agi/nex-n2.5-pro:free",
+  ],
+  unorouter: [
+    "zglm-5.3-flash:free",
+    "zglm-5.3:free",
+    "nex-n2.5-mini:free",
+    "nex-n2.5-pro:free",
+  ],
 };
 const CUSTOM_MODEL = "__custom__";
 

@@ -9,15 +9,19 @@ import {
 /**
  * Which LLM provider this credential's apiKey/model belong to — determines
  * which adapter (see modules/chat/providers) LlmChatClient dispatches to.
- * Groq and OpenAI both speak the same OpenAI-compatible chat-completions
- * format; Anthropic and Gemini each have their own distinct API shape,
- * handled by dedicated adapters.
+ * Groq, OpenAI, OpenRouter, and UnoRouter all speak the same
+ * OpenAI-compatible chat-completions format (OpenRouter/UnoRouter are
+ * aggregators that also offer ":free"-suffixed free-tier models);
+ * Anthropic and Gemini each have their own distinct API shape, handled
+ * by dedicated adapters.
  */
 export enum LlmProvider {
   GROQ = 'groq',
   OPENAI = 'openai',
   ANTHROPIC = 'anthropic',
   GEMINI = 'gemini',
+  OPENROUTER = 'openrouter',
+  UNOROUTER = 'unorouter',
 }
 
 /**
