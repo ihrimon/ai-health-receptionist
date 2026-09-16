@@ -7,12 +7,13 @@ import type {
 } from '@anthropic-ai/sdk/resources/messages';
 import { FIND_AVAILABLE_SLOTS_TOOL } from '../find-available-slots.tool';
 import { RECORD_BOOKING_TOOL } from '../record-booking.tool';
-import type {
-  AdapterCompleteParams,
-  AdapterCompleteResult,
-  ChatCompletionMessage,
-  ChatCompletionMessageParam,
-  LlmProviderAdapter,
+import {
+  LLM_REQUEST_TIMEOUT_MS,
+  type AdapterCompleteParams,
+  type AdapterCompleteResult,
+  type ChatCompletionMessage,
+  type ChatCompletionMessageParam,
+  type LlmProviderAdapter,
 } from './provider-adapter.types';
 
 // Both tool constants are `{ type: 'function', function: {...} }` literals
@@ -41,7 +42,14 @@ export class AnthropicAdapter implements LlmProviderAdapter {
     model,
     messages,
   }: AdapterCompleteParams): Promise<AdapterCompleteResult> {
-    const client = new Anthropic({ apiKey });
+    // maxRetries: 0 — see OpenAiCompatibleAdapter's identical note; our
+    // own cross-credential rotation already covers retrying, and this
+    // SDK's default 10-minute timeout is fatal for chat UX if left unset.
+    const client = new Anthropic({
+      apiKey,
+      timeout: LLM_REQUEST_TIMEOUT_MS,
+      maxRetries: 0,
+    });
     const { system, messages: anthropicMessages } =
       toAnthropicMessages(messages);
 
@@ -64,7 +72,9 @@ export class AnthropicAdapter implements LlmProviderAdapter {
   isRetryableError(err: unknown): boolean {
     return (
       err instanceof Anthropic.RateLimitError ||
-      err instanceof Anthropic.AuthenticationError
+      err instanceof Anthropic.AuthenticationError ||
+      err instanceof Anthropic.APIConnectionTimeoutError ||
+      err instanceof Anthropic.APIConnectionError
     );
   }
 

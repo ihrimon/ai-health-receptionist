@@ -1,14 +1,20 @@
-import OpenAI, { AuthenticationError, RateLimitError } from 'openai';
+import OpenAI, {
+  APIConnectionError,
+  APIConnectionTimeoutError,
+  AuthenticationError,
+  RateLimitError,
+} from 'openai';
 import type {
   ChatCompletionMessageParam as OpenAiMessageParam,
   ChatCompletionTool as OpenAiTool,
 } from 'openai/resources/chat/completions';
 import { FIND_AVAILABLE_SLOTS_TOOL } from '../find-available-slots.tool';
 import { RECORD_BOOKING_TOOL } from '../record-booking.tool';
-import type {
-  AdapterCompleteParams,
-  AdapterCompleteResult,
-  LlmProviderAdapter,
+import {
+  LLM_REQUEST_TIMEOUT_MS,
+  type AdapterCompleteParams,
+  type AdapterCompleteResult,
+  type LlmProviderAdapter,
 } from './provider-adapter.types';
 
 /**
@@ -44,7 +50,16 @@ export class OpenAiSdkAdapter implements LlmProviderAdapter {
     model,
     messages,
   }: AdapterCompleteParams): Promise<AdapterCompleteResult> {
-    const client = new OpenAI({ apiKey, baseURL: this.baseURL });
+    // maxRetries: 0 — see OpenAiCompatibleAdapter's identical note; our
+    // own cross-credential rotation already covers retrying, and the
+    // `openai` package's default 10-minute timeout is fatal for chat UX
+    // if left unset (this is a free-tier aggregator under load, easily).
+    const client = new OpenAI({
+      apiKey,
+      baseURL: this.baseURL,
+      timeout: LLM_REQUEST_TIMEOUT_MS,
+      maxRetries: 0,
+    });
     const { data: completion, response } = await client.chat.completions
       .create({
         model,
@@ -69,7 +84,12 @@ export class OpenAiSdkAdapter implements LlmProviderAdapter {
   }
 
   isRetryableError(err: unknown): boolean {
-    return err instanceof RateLimitError || err instanceof AuthenticationError;
+    return (
+      err instanceof RateLimitError ||
+      err instanceof AuthenticationError ||
+      err instanceof APIConnectionTimeoutError ||
+      err instanceof APIConnectionError
+    );
   }
 
   getRateLimitHeaders(err: unknown) {

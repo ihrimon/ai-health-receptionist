@@ -16,6 +16,20 @@ import type { HeaderReader } from '../llm-key-manager';
  */
 export type { ChatCompletionMessage, ChatCompletionMessageParam };
 
+/**
+ * Every provider SDK here defaults to a very generous per-request
+ * timeout (groq-sdk: 1 minute; the `openai` package and
+ * `@anthropic-ai/sdk`: 10 minutes) — fine for a one-off script, but
+ * fatal for chat UX when a slow/overloaded credential (a free-tier
+ * aggregator under load, say) is in the rotation: LlmChatClient's
+ * cross-credential retry can't kick in until the SDK itself gives up,
+ * so one bad credential could make a single chat turn take minutes.
+ * Each adapter passes this explicitly instead, so a genuinely slow or
+ * hung provider fails fast enough to rotate to the next credential
+ * within the same turn rather than the caller just waiting.
+ */
+export const LLM_REQUEST_TIMEOUT_MS = 20_000;
+
 export interface AdapterCompleteParams {
   apiKey: string;
   model: string;
@@ -34,10 +48,11 @@ export interface LlmProviderAdapter {
    * Whether a thrown error is worth rotating to the next configured
    * credential for, rather than failing the turn outright — a rate limit
    * (429) obviously, but ALSO an authentication error (401/403, a
-   * revoked/mistyped key): a single bad credential shouldn't block every
+   * revoked/mistyped key) and a connection timeout/network error: a
+   * single bad OR slow/unreachable credential shouldn't block every
    * *other* configured credential behind it in the list from ever being
-   * tried. A genuinely different problem (bad request, network error)
-   * still isn't retried — another key wouldn't fix those.
+   * tried. A genuinely different problem (a malformed request our own
+   * code sent) still isn't retried — another key wouldn't fix that.
    */
   isRetryableError(err: unknown): boolean;
   /** Rate-limit headers carried on the error, if this provider's SDK exposes them (used only after isRetryableError(err) is true; not every provider/error has them, e.g. an auth error usually doesn't carry quota info). */

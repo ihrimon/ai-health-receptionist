@@ -1,10 +1,16 @@
-import Groq, { AuthenticationError, RateLimitError } from 'groq-sdk';
+import Groq, {
+  APIConnectionError,
+  APIConnectionTimeoutError,
+  AuthenticationError,
+  RateLimitError,
+} from 'groq-sdk';
 import { FIND_AVAILABLE_SLOTS_TOOL } from '../find-available-slots.tool';
 import { RECORD_BOOKING_TOOL } from '../record-booking.tool';
-import type {
-  AdapterCompleteParams,
-  AdapterCompleteResult,
-  LlmProviderAdapter,
+import {
+  LLM_REQUEST_TIMEOUT_MS,
+  type AdapterCompleteParams,
+  type AdapterCompleteResult,
+  type LlmProviderAdapter,
 } from './provider-adapter.types';
 
 /**
@@ -27,7 +33,14 @@ export class OpenAiCompatibleAdapter implements LlmProviderAdapter {
     model,
     messages,
   }: AdapterCompleteParams): Promise<AdapterCompleteResult> {
-    const client = new Groq({ apiKey });
+    // maxRetries: 0 — LlmChatClient already retries across every OTHER
+    // configured credential; the SDK's own default of retrying the SAME
+    // key twice (with backoff) just adds delay for no real benefit here.
+    const client = new Groq({
+      apiKey,
+      timeout: LLM_REQUEST_TIMEOUT_MS,
+      maxRetries: 0,
+    });
     const { data: completion, response } = await client.chat.completions
       .create({
         model,
@@ -48,7 +61,12 @@ export class OpenAiCompatibleAdapter implements LlmProviderAdapter {
   }
 
   isRetryableError(err: unknown): boolean {
-    return err instanceof RateLimitError || err instanceof AuthenticationError;
+    return (
+      err instanceof RateLimitError ||
+      err instanceof AuthenticationError ||
+      err instanceof APIConnectionTimeoutError ||
+      err instanceof APIConnectionError
+    );
   }
 
   getRateLimitHeaders(err: unknown) {

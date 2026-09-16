@@ -1,5 +1,6 @@
 import {
   GoogleGenerativeAI,
+  GoogleGenerativeAIAbortError,
   GoogleGenerativeAIFetchError,
   type Content,
   type FunctionDeclaration,
@@ -10,12 +11,13 @@ import {
 import { randomUUID } from 'crypto';
 import { FIND_AVAILABLE_SLOTS_TOOL } from '../find-available-slots.tool';
 import { RECORD_BOOKING_TOOL } from '../record-booking.tool';
-import type {
-  AdapterCompleteParams,
-  AdapterCompleteResult,
-  ChatCompletionMessage,
-  ChatCompletionMessageParam,
-  LlmProviderAdapter,
+import {
+  LLM_REQUEST_TIMEOUT_MS,
+  type AdapterCompleteParams,
+  type AdapterCompleteResult,
+  type ChatCompletionMessage,
+  type ChatCompletionMessageParam,
+  type LlmProviderAdapter,
 } from './provider-adapter.types';
 
 // Both tool constants are `{ type: 'function', function: {...} }` literals
@@ -57,7 +59,15 @@ export class GeminiAdapter implements LlmProviderAdapter {
       systemInstruction,
     });
 
-    const result = await generativeModel.generateContent({ contents });
+    // Unlike the other three adapters, this SDK has no generous built-in
+    // default to override — an unset timeout here means no timeout at
+    // all, so this is the only thing standing between a hung request and
+    // LlmChatClient's cross-credential rotation never getting a chance
+    // to run within the same turn.
+    const result = await generativeModel.generateContent(
+      { contents },
+      { timeout: LLM_REQUEST_TIMEOUT_MS },
+    );
 
     return { message: fromGeminiResponse(result.response) };
   }
@@ -71,13 +81,19 @@ export class GeminiAdapter implements LlmProviderAdapter {
     // deprecated/retired by Google — both are per-credential
     // misconfigurations, not something wrong with the request itself, so
     // they shouldn't block every other configured credential either.
-    return (
-      err instanceof GoogleGenerativeAIFetchError &&
-      (err.status === 429 ||
+    if (err instanceof GoogleGenerativeAIFetchError) {
+      return (
+        err.status === 429 ||
         err.status === 400 ||
         err.status === 403 ||
-        err.status === 404)
-    );
+        err.status === 404
+      );
+    }
+    // Our own timeout (LLM_REQUEST_TIMEOUT_MS above) aborting the
+    // request — a slow/unreachable credential shouldn't block every
+    // other configured one either, same reasoning as the status checks
+    // above.
+    return err instanceof GoogleGenerativeAIAbortError;
   }
 
   getRateLimitHeaders(): undefined {
