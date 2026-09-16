@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/select";
 import { apiFetch, formatDateTime, type Provider } from "@/lib/api";
 import { SERVICE_OPTIONS, CUSTOM_SERVICE } from "@/lib/specialties";
+import { toastError, toastSuccess } from "@/lib/toast";
 
 const SLOT_DURATIONS = ["10", "20", "30", "40", "50", "60"];
 
@@ -140,17 +141,17 @@ export default function ProvidersPage() {
   async function handleCreate(e: FormEvent) {
     e.preventDefault();
     setSaving(true);
-    setError(null);
     try {
       await apiFetch<Provider>("/providers", {
         method: "POST",
         body: JSON.stringify(toDto(createForm)),
       });
+      toastSuccess(`${createForm.name} was added.`);
       setCreateForm(EMPTY_FORM);
       setCreateOpen(false);
       load();
     } catch (err) {
-      setError((err as Error).message);
+      toastError((err as Error).message);
     } finally {
       setSaving(false);
     }
@@ -165,17 +166,17 @@ export default function ProvidersPage() {
     e.preventDefault();
     if (!editing || !editForm) return;
     setSaving(true);
-    setError(null);
     try {
       await apiFetch<Provider>(`/providers/${editing.id}`, {
         method: "PATCH",
         body: JSON.stringify(toDto(editForm)),
       });
+      toastSuccess(`${editForm.name} was updated.`);
       setEditing(null);
       setEditForm(null);
       load();
     } catch (err) {
-      setError((err as Error).message);
+      toastError((err as Error).message);
     } finally {
       setSaving(false);
     }
@@ -187,9 +188,10 @@ export default function ProvidersPage() {
         method: "PATCH",
         body: JSON.stringify({ isActive: !p.isActive }),
       });
+      toastSuccess(`${p.name} is now ${p.isActive ? "inactive" : "active"}.`);
       load();
     } catch (err) {
-      setError((err as Error).message);
+      toastError((err as Error).message);
     }
   }
 
@@ -203,9 +205,10 @@ export default function ProvidersPage() {
     setBusyId(p.id);
     try {
       await apiFetch(`/providers/${p.id}`, { method: "DELETE" });
+      toastSuccess(`${p.name} was deleted.`);
       load();
     } catch (err) {
-      setError((err as Error).message);
+      toastError((err as Error).message);
     } finally {
       setBusyId(null);
     }

@@ -20,6 +20,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { apiFetch, formatDateTime, type Conversation } from "@/lib/api";
+import { toastError, toastSuccess } from "@/lib/toast";
 
 function preview(conversation: Conversation): string {
   const turns = conversation.transcript ?? [];
@@ -48,10 +49,11 @@ export default function ConversationsPage() {
       await apiFetch(`/conversations/${deleteTarget.id}`, {
         method: "DELETE",
       });
+      toastSuccess("Conversation deleted.");
       setDeleteTarget(null);
       load();
     } catch (err) {
-      setError((err as Error).message);
+      toastError((err as Error).message);
     } finally {
       setBusyId(null);
     }

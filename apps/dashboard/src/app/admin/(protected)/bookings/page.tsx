@@ -39,6 +39,7 @@ import {
 import { StatusBadge } from "@/components/status-badge";
 import { apiFetch, formatDateTime, type Booking, type Provider } from "@/lib/api";
 import { SERVICE_OPTIONS, CUSTOM_SERVICE } from "@/lib/specialties";
+import { toastError, toastSuccess } from "@/lib/toast";
 
 const STATUS_FILTERS = ["all", "pending", "confirmed", "completed", "cancelled"] as const;
 
@@ -125,7 +126,6 @@ export default function BookingsPage() {
     e.preventDefault();
     if (!editing || !editForm) return;
     setSaving(true);
-    setError(null);
     try {
       await apiFetch<Booking>(`/bookings/${editing.id}`, {
         method: "PATCH",
@@ -136,11 +136,12 @@ export default function BookingsPage() {
           notes: editForm.notes || undefined,
         }),
       });
+      toastSuccess(`Booking for ${editForm.name} was updated.`);
       setEditing(null);
       setEditForm(null);
       load();
     } catch (err) {
-      setError((err as Error).message);
+      toastError((err as Error).message);
     } finally {
       setSaving(false);
     }
@@ -151,10 +152,11 @@ export default function BookingsPage() {
     setBusyId(deleteTarget.id);
     try {
       await apiFetch(`/bookings/${deleteTarget.id}`, { method: "DELETE" });
+      toastSuccess(`Booking for ${deleteTarget.name} was deleted.`);
       setDeleteTarget(null);
       load();
     } catch (err) {
-      setError((err as Error).message);
+      toastError((err as Error).message);
     } finally {
       setBusyId(null);
     }

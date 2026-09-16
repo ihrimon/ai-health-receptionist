@@ -44,6 +44,7 @@ import {
   type LlmCredential,
   type LlmProvider,
 } from "@/lib/api";
+import { toastError, toastSuccess } from "@/lib/toast";
 
 // Groq and Gemini both offer a genuinely free, ongoing API tier (rate
 // limited, but no card required). OpenRouter and UnoRouter are
@@ -273,6 +274,9 @@ function LlmCredentialsSettings() {
         method: "POST",
         body: JSON.stringify({ provider, apiKey, model: resolvedModel }),
       });
+      toastSuccess(
+        `${PROVIDERS.find((p) => p.value === provider)?.label ?? provider} key added.`,
+      );
       setApiKey("");
       selectProvider("groq");
       setCreateOpen(false);
@@ -301,6 +305,7 @@ function LlmCredentialsSettings() {
           ...(editApiKey ? { apiKey: editApiKey } : {}),
         }),
       });
+      toastSuccess("API key updated.");
       setEditTarget(null);
       load();
     } catch (err) {
@@ -317,9 +322,10 @@ function LlmCredentialsSettings() {
         method: "PATCH",
         body: JSON.stringify({ isActive: !c.isActive }),
       });
+      toastSuccess(`Key is now ${c.isActive ? "paused" : "active"}.`);
       load();
     } catch (err) {
-      setError((err as Error).message);
+      toastError((err as Error).message);
     } finally {
       setBusyId(null);
     }
@@ -340,9 +346,11 @@ function LlmCredentialsSettings() {
         method: "PATCH",
         body: JSON.stringify({ orderedIds }),
       });
+      // No success toast here on purpose — the row visibly moving up/down
+      // is already the feedback, and every click would otherwise pop one.
       load();
     } catch (err) {
-      setError((err as Error).message);
+      toastError((err as Error).message);
     } finally {
       setBusyId(null);
     }
@@ -355,10 +363,11 @@ function LlmCredentialsSettings() {
       await apiFetch(`/llm-credentials/${deleteTarget.id}`, {
         method: "DELETE",
       });
+      toastSuccess("API key deleted.");
       setDeleteTarget(null);
       load();
     } catch (err) {
-      setError((err as Error).message);
+      toastError((err as Error).message);
     } finally {
       setBusyId(null);
     }

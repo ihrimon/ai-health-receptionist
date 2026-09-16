@@ -29,6 +29,7 @@ import {
   type Provider,
   type ProviderAvailability,
 } from "@/lib/api";
+import { toastError, toastSuccess } from "@/lib/toast";
 
 export default function ProviderDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -57,7 +58,6 @@ export default function ProviderDetailPage() {
   async function addBlock(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
-    setError(null);
     try {
       await apiFetch(`/providers/${id}/availability`, {
         method: "POST",
@@ -67,9 +67,10 @@ export default function ProviderDetailPage() {
           endTime,
         }),
       });
+      toastSuccess("Availability block added.");
       load();
     } catch (err) {
-      setError((err as Error).message);
+      toastError((err as Error).message);
     } finally {
       setBusy(false);
     }
@@ -81,9 +82,10 @@ export default function ProviderDetailPage() {
       await apiFetch(`/providers/${id}/availability/${blockId}`, {
         method: "DELETE",
       });
+      toastSuccess("Availability block removed.");
       load();
     } catch (err) {
-      setError((err as Error).message);
+      toastError((err as Error).message);
     } finally {
       setBusy(false);
     }
@@ -94,8 +96,9 @@ export default function ProviderDetailPage() {
     setBusy(true);
     try {
       await apiFetch(`/providers/${id}/google`, { method: "DELETE" });
+      toastSuccess("Google Calendar disconnected.");
     } catch (err) {
-      setError((err as Error).message);
+      toastError((err as Error).message);
     } finally {
       setBusy(false);
     }
@@ -107,9 +110,10 @@ export default function ProviderDetailPage() {
     setBusy(true);
     try {
       await apiFetch(`/providers/${id}`, { method: "DELETE" });
+      toastSuccess(`${provider?.name ?? "Doctor"} was deleted.`);
       router.push("/admin/doctors");
     } catch (err) {
-      setError((err as Error).message);
+      toastError((err as Error).message);
       setBusy(false);
     }
   }
@@ -164,8 +168,6 @@ export default function ProviderDetailPage() {
             </p>
           </div>
         </div>
-
-        {error && <p className="text-sm text-destructive">{error}</p>}
 
         <Card>
           <CardHeader>
