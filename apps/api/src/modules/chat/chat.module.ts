@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AuthModule } from '../auth/auth.module';
 import { BookingsModule } from '../bookings/bookings.module';
 import { ConversationsModule } from '../conversations/conversations.module';
 import { KnowledgeModule } from '../knowledge/knowledge.module';
@@ -19,6 +20,7 @@ import { ProviderRegistryModule } from './providers/provider-registry.module';
     ProvidersModule,
     LlmCredentialsModule,
     ProviderRegistryModule,
+    AuthModule,
   ],
   controllers: [ChatController],
   providers: [ChatService, LlmChatClient, LlmKeyManager, ChatToolExecutor],

@@ -1,17 +1,29 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { AuthService } from '../auth/auth.service';
 import { ChatController } from './chat.controller';
 import { ChatService } from './chat.service';
+import { LlmKeyManager } from './llm-key-manager';
 
 describe('ChatController', () => {
   let controller: ChatController;
   let chatService: { sendMessage: jest.Mock };
+  let llmKeyManager: { getCurrentCredential: jest.Mock };
 
   beforeEach(async () => {
     chatService = { sendMessage: jest.fn() };
+    llmKeyManager = { getCurrentCredential: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [ChatController],
-      providers: [{ provide: ChatService, useValue: chatService }],
+      providers: [
+        { provide: ChatService, useValue: chatService },
+        { provide: LlmKeyManager, useValue: llmKeyManager },
+        // activeCredential() is @UseGuards(AdminAuthGuard) — Nest
+        // instantiates the real guard as part of the module graph even
+        // though these tests call controller methods directly (bypassing
+        // the HTTP guard pipeline), so its own dependency needs a stub.
+        { provide: AuthService, useValue: { verifyToken: () => true } },
+      ],
     }).compile();
 
     controller = module.get<ChatController>(ChatController);
@@ -30,5 +42,28 @@ describe('ChatController', () => {
 
     expect(chatService.sendMessage).toHaveBeenCalledWith(dto);
     expect(result).toBe(expected);
+  });
+
+  describe('activeCredential', () => {
+    it("returns the current rotation credential's id", async () => {
+      llmKeyManager.getCurrentCredential.mockResolvedValue({
+        id: 'cred-1',
+        provider: 'groq',
+        apiKey: 'gsk_x',
+        model: 'openai/gpt-oss-20b',
+      });
+
+      const result = await controller.activeCredential();
+
+      expect(result).toEqual({ id: 'cred-1' });
+    });
+
+    it('returns a null id when no credential is configured', async () => {
+      llmKeyManager.getCurrentCredential.mockResolvedValue(undefined);
+
+      const result = await controller.activeCredential();
+
+      expect(result).toEqual({ id: null });
+    });
   });
 });
