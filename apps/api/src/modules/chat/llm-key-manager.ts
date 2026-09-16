@@ -124,13 +124,13 @@ export class LlmKeyManager {
     const nextIndex = currentIndex + 1;
     if (nextIndex >= total) {
       this.logger.warn(
-        `LLM credential ${currentIndex + 1}/${total} rate-limited — no more credentials to rotate to.`,
+        `LLM credential ${currentIndex + 1}/${total} unavailable — no more credentials to rotate to. (See the "Credential ... failed" line just above for the actual reason.)`,
       );
       return false;
     }
     this.currentCredentialId = credentials[nextIndex].id;
     this.logger.warn(
-      `LLM credential ${currentIndex + 1}/${total} rate-limited — rotating to credential ${nextIndex + 1}/${total}.`,
+      `LLM credential ${currentIndex + 1}/${total} unavailable — rotating to credential ${nextIndex + 1}/${total}. (See the "Credential ... failed" line just above for the actual reason.)`,
     );
     return true;
   }

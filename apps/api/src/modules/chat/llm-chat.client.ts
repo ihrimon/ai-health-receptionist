@@ -124,6 +124,14 @@ export class LlmChatClient {
         if (!adapter.isRetryableError(err)) {
           throw err;
         }
+        // The real reason (429 rate limit, 401/403 auth, a timeout) —
+        // rotateToNext()'s own log line just says "rate-limited" for all
+        // three, which made this genuinely hard to diagnose from
+        // production logs alone (is it actually a quota problem, or a
+        // bad key, or a slow provider?).
+        this.logger.warn(
+          `Credential ${credential.id} (${credential.provider}, ${credential.model}) failed: ${(err as Error).message}`,
+        );
         await this.keyManager.recordUsage(
           credential.id,
           adapter.getRateLimitHeaders(err),
