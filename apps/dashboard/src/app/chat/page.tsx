@@ -36,6 +36,9 @@ interface ChatMessage {
   durationSec?: number;
 }
 
+/** Thrown only for a non-ok /chat/message response — see submitMessage's catch block. */
+class ChatApiError extends Error {}
+
 interface ChatApiResponse {
   sessionId: string;
   reply: string;
@@ -219,7 +222,22 @@ export default function ChatPage() {
       });
 
       if (!res.ok) {
-        throw new Error(`API returned ${res.status}`);
+        // Surface the backend's own error message when it sent one (e.g.
+        // a genuine 500) instead of a generic "API returned 500" that
+        // hides what actually went wrong — most LLM-side failures
+        // (rate limits, no credentials configured) never reach here at
+        // all, they come back as a normal 200 with a friendly reply
+        // (see ChatService), so a non-ok response usually means a real
+        // backend/infra problem worth showing as-is. Tagged with
+        // ChatApiError so the catch block below can tell this apart from
+        // a raw network failure (fetch() throwing before any response
+        // came back at all) and show its message verbatim only here.
+        const body: { message?: string } | null = await res
+          .json()
+          .catch(() => null);
+        throw new ChatApiError(
+          body?.message ?? `The clinic assistant returned an error (${res.status}).`,
+        );
       }
 
       const data: ChatApiResponse = await res.json();
@@ -239,9 +257,17 @@ export default function ChatPage() {
       if (data.bookingCreated && !ratingPromptDone) {
         setShowRatingModal(true);
       }
-    } catch {
+    } catch (err) {
+      // ChatApiError carries the backend's own message, worth showing
+      // verbatim. Anything else here is a raw network-level failure
+      // (fetch() throwing before any response came back — offline, CORS,
+      // or Render's free tier still cold-starting after being idle) with
+      // an unhelpful browser-generated message, so show a generic one
+      // instead.
       setError(
-        "Couldn't reach the clinic assistant. Is the API running and is GROQ_API_KEY set?",
+        err instanceof ChatApiError
+          ? err.message
+          : "Couldn't reach the clinic assistant — the API might be unreachable or still starting up. Please try again in a moment.",
       );
     } finally {
       setLoading(false);
