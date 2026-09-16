@@ -103,6 +103,78 @@ describe('LlmKeyManager', () => {
     await expect(manager.getCredentialCount()).resolves.toBe(2);
   });
 
+  it('keeps pointing at the same credential after it moves position (reorder), not whatever now sits in the old slot', async () => {
+    const { manager, findActiveOrdered } = await buildManager([
+      credential('key-a'),
+      credential('key-b'),
+      credential('key-c'),
+    ]);
+
+    await manager.rotateToNext(); // now on key-b
+    await expect(manager.getCurrentCredential()).resolves.toMatchObject({
+      apiKey: 'key-b',
+    });
+
+    // Admin reorders in Settings: key-c moved to the front. key-b is
+    // still the second physical row, but was previously "index 1" —
+    // an index-based tracker would have silently switched to whatever
+    // is now at index 1 (key-a) instead.
+    findActiveOrdered.mockResolvedValue([
+      credential('key-c'),
+      credential('key-b'),
+      credential('key-a'),
+    ]);
+
+    await expect(manager.getCurrentCredential()).resolves.toMatchObject({
+      apiKey: 'key-b',
+    });
+  });
+
+  it('falls back to the new first credential when the in-rotation one is deleted, instead of returning undefined', async () => {
+    const { manager, findActiveOrdered } = await buildManager([
+      credential('key-a'),
+      credential('key-b'),
+      credential('key-c'),
+    ]);
+
+    await manager.rotateToNext(); // now on key-b
+    await expect(manager.getCurrentCredential()).resolves.toMatchObject({
+      apiKey: 'key-b',
+    });
+
+    // Admin deletes key-b (the in-rotation credential) in Settings.
+    findActiveOrdered.mockResolvedValue([
+      credential('key-a'),
+      credential('key-c'),
+    ]);
+
+    await expect(manager.getCurrentCredential()).resolves.toMatchObject({
+      apiKey: 'key-a',
+    });
+  });
+
+  it('rotates onward correctly after the in-rotation credential was deleted', async () => {
+    const { manager, findActiveOrdered } = await buildManager([
+      credential('key-a'),
+      credential('key-b'),
+      credential('key-c'),
+    ]);
+
+    await manager.rotateToNext(); // now on key-b
+    findActiveOrdered.mockResolvedValue([
+      credential('key-a'),
+      credential('key-c'),
+    ]); // key-b deleted
+
+    await expect(manager.getCurrentCredential()).resolves.toMatchObject({
+      apiKey: 'key-a',
+    }); // falls back to first
+    await expect(manager.rotateToNext()).resolves.toBe(true);
+    await expect(manager.getCurrentCredential()).resolves.toMatchObject({
+      apiKey: 'key-c',
+    });
+  });
+
   describe('recordUsage', () => {
     it('parses the rate-limit headers and persists them against the credential', async () => {
       const { manager, recordUsage } = await buildManager([

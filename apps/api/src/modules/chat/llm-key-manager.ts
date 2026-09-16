@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import type { LlmProvider } from '../../database/entities';
+import type { LlmCredential, LlmProvider } from '../../database/entities';
 import { LlmCredentialsService } from '../llm-credentials/llm-credentials.service';
 
 /** Thrown when no LLM credential has been configured yet (Settings page is empty). */
@@ -50,34 +50,47 @@ export interface HeaderReader {
  * editing Settings takes effect on the very next chat turn without a
  * restart.
  *
- * Single NestJS process, in-memory index: fine for this project's one-
+ * Position is tracked by credential ID, not list index — an index would
+ * silently point at a *different* credential the moment an admin
+ * reorders the list (same slot, different key now sitting in it), and
+ * point PAST THE END the moment they delete the in-rotation credential,
+ * which made getCurrentCredential() return undefined and every chat
+ * turn fail immediately even with other perfectly good keys still
+ * configured (confirmed live: deleting the active key broke chat
+ * entirely). Tracking by ID means a reorder simply doesn't affect which
+ * real credential is "active", and a delete falls back to whatever is
+ * now first in the list instead of falling off the end.
+ *
+ * Single NestJS process, in-memory state: fine for this project's one-
  * `api`-container deployment; a multi-instance deployment would need
  * this state moved somewhere shared (e.g. Redis) to rotate in sync
  * across instances. Rotation is forward-only for the lifetime of the
  * process — once the last credential is exhausted, every further
  * request gets the "all keys exhausted" fallback until the process
- * restarts (or an admin edits Settings, since findActiveOrdered() is
- * re-read live — the index itself doesn't reset, but a shorter/edited
- * list changes what it points at).
+ * restarts (or an admin edits Settings, since the list is re-read live
+ * on every call).
  */
 @Injectable()
 export class LlmKeyManager {
   private readonly logger = new Logger(LlmKeyManager.name);
-  private currentIndex = 0;
+  private currentCredentialId: string | null = null;
 
   constructor(private readonly credentialsService: LlmCredentialsService) {}
 
   async getCurrentCredential(): Promise<LlmCredentialSnapshot | undefined> {
     const credentials = await this.credentialsService.findActiveOrdered();
-    const credential = credentials[this.currentIndex];
-    return credential
-      ? {
-          id: credential.id,
-          provider: credential.provider,
-          apiKey: credential.apiKey,
-          model: credential.model,
-        }
-      : undefined;
+    if (credentials.length === 0) {
+      this.currentCredentialId = null;
+      return undefined;
+    }
+    // Falls back to the first credential in the list whenever the one we
+    // were last pointed at is gone (deleted, paused, or never set yet) —
+    // see the class doc comment for why this can't just be an index.
+    const current =
+      credentials.find((c) => c.id === this.currentCredentialId) ??
+      credentials[0];
+    this.currentCredentialId = current.id;
+    return toSnapshot(current);
   }
 
   async getCredentialCount(): Promise<number> {
@@ -85,20 +98,39 @@ export class LlmKeyManager {
   }
 
   /**
-   * Advances to the next credential. Returns true if there was a next
-   * one to move to, false if the caller was already on the last one.
+   * Advances to the next credential after the current one, by position
+   * in the live list. Returns true if there was a next one to move to,
+   * false if the caller was already on the last one.
+   *
+   * A credential that's since vanished (deleted or paused) is treated as
+   * index -1 — "next" becomes index 0, the same first-in-list fallback
+   * getCurrentCredential() would have picked anyway — but `null` (never
+   * pointed at anything yet) is treated as already AT index 0, so the
+   * very first rotateToNext() call on a fresh manager correctly advances
+   * to index 1 rather than re-selecting index 0 it was implicitly
+   * already "on".
    */
   async rotateToNext(): Promise<boolean> {
-    const total = await this.getCredentialCount();
-    if (this.currentIndex >= total - 1) {
+    const credentials = await this.credentialsService.findActiveOrdered();
+    const total = credentials.length;
+    if (total === 0) {
+      this.currentCredentialId = null;
+      return false;
+    }
+    const currentIndex =
+      this.currentCredentialId === null
+        ? 0
+        : credentials.findIndex((c) => c.id === this.currentCredentialId);
+    const nextIndex = currentIndex + 1;
+    if (nextIndex >= total) {
       this.logger.warn(
-        `LLM credential ${this.currentIndex + 1}/${total} rate-limited — no more credentials to rotate to.`,
+        `LLM credential ${currentIndex + 1}/${total} rate-limited — no more credentials to rotate to.`,
       );
       return false;
     }
-    this.currentIndex += 1;
+    this.currentCredentialId = credentials[nextIndex].id;
     this.logger.warn(
-      `LLM credential ${this.currentIndex}/${total} rate-limited — rotating to credential ${this.currentIndex + 1}/${total}.`,
+      `LLM credential ${currentIndex + 1}/${total} rate-limited — rotating to credential ${nextIndex + 1}/${total}.`,
     );
     return true;
   }
@@ -146,4 +178,13 @@ function readIntHeader(
   if (!value) return undefined;
   const parsed = Number.parseInt(value, 10);
   return Number.isNaN(parsed) ? undefined : parsed;
+}
+
+function toSnapshot(credential: LlmCredential): LlmCredentialSnapshot {
+  return {
+    id: credential.id,
+    provider: credential.provider,
+    apiKey: credential.apiKey,
+    model: credential.model,
+  };
 }
