@@ -110,7 +110,11 @@ export default function SettingsPage() {
 
 function maskKey(apiKey: string): string {
   const tail = apiKey.slice(-4);
-  return `${"•".repeat(Math.max(apiKey.length - 4, 8))}${tail}`;
+  // Capped at 24 dots regardless of the real key's length — some
+  // providers issue 60+ char keys, and a mask that long could still
+  // overflow the row no matter how wide the page is.
+  const dotCount = Math.min(Math.max(apiKey.length - 4, 8), 24);
+  return `${"•".repeat(dotCount)}${tail}`;
 }
 
 /**
@@ -375,7 +379,7 @@ function LlmCredentialsSettings() {
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
-      <div className="mx-auto grid max-w-2xl gap-6">
+      <div className="mx-auto grid max-w-5xl gap-6">
         <Card>
           <CardHeader>
             <CardTitle>LLM API keys</CardTitle>
@@ -548,8 +552,8 @@ function LlmCredentialsSettings() {
                           ?.label ?? c.provider}
                       </span>
                     </div>
-                    <div className="mt-1 flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
-                      <span>
+                    <div className="mt-1 flex min-w-0 items-center gap-1.5 font-mono text-xs text-muted-foreground">
+                      <span className="truncate">
                         {revealed.has(c.id) ? c.apiKey : maskKey(c.apiKey)}
                       </span>
                       <button
