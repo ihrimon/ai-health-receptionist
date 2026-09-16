@@ -128,38 +128,88 @@ const compactNumber = new Intl.NumberFormat("en", {
   maximumFractionDigits: 1,
 });
 
-/** "1m26.442s" / "19.717s" -> "1m26s" / "20s" — drop sub-second precision, nobody needs it. */
-function roundDuration(duration: string): string {
-  return duration.replace(/\d+\.\d+/g, (n) => String(Math.round(Number(n))));
+/**
+ * Parses a Go-duration-style string ("1m26.442s", "19.717s", "2h3m",
+ * "500ms") — the shape these providers' x-ratelimit-reset-* headers use
+ * — into milliseconds. Returns null for anything unrecognized rather
+ * than guessing, so the caller can fall back to just not showing a
+ * countdown instead of showing a wrong one.
+ */
+function parseDurationToMs(duration: string): number | null {
+  const match = duration
+    .trim()
+    .match(
+      /^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+(?:\.\d+)?)s)?(?:(\d+(?:\.\d+)?)ms)?$/,
+    );
+  if (!match || match[0] === "") return null;
+  const [, h, m, s, ms] = match;
+  if (!h && !m && !s && !ms) return null;
+  return (
+    (Number(h ?? 0) * 3600 + Number(m ?? 0) * 60 + Number(s ?? 0)) * 1000 +
+    Number(ms ?? 0)
+  );
+}
+
+/** milliseconds -> "1m26s" / "20s", the same compact style the raw header text used. */
+function formatCountdown(ms: number): string {
+  const totalSeconds = Math.ceil(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return minutes > 0 ? `${minutes}m${seconds}s` : `${seconds}s`;
 }
 
 function UsageStat({
   remaining,
   limit,
   reset,
+  lastUsedAt,
+  now,
   unit,
   low,
 }: {
   remaining: number;
   limit: number;
   reset?: string;
+  lastUsedAt: string;
+  now: number;
   unit: string;
   low: boolean;
 }) {
+  // A genuinely live countdown, not just the frozen header text: the
+  // provider's "resets in Xs" is only true as of lastUsedAt (the moment
+  // that response arrived), so it derives an absolute target time from
+  // lastUsedAt + the parsed duration and counts down from `now` (ticking
+  // every second, see the parent's setInterval) instead of quietly going
+  // stale the moment this credential stops being the one in rotation.
+  const durationMs = reset ? parseDurationToMs(reset) : null;
+  const remainingMs =
+    durationMs !== null
+      ? new Date(lastUsedAt).getTime() + durationMs - now
+      : null;
+
   return (
     <span className={low ? "text-amber-600 dark:text-amber-400" : undefined}>
       {compactNumber.format(remaining)}/{compactNumber.format(limit)} {unit}
-      {reset && (
+      {remainingMs !== null && (
         <span className="text-muted-foreground/70">
           {" "}
-          — resets in {roundDuration(reset)}
+          —{" "}
+          {remainingMs > 0
+            ? `resets in ${formatCountdown(remainingMs)}`
+            : "may have reset by now"}
         </span>
       )}
     </span>
   );
 }
 
-function UsageLine({ credential: c }: { credential: LlmCredential }) {
+function UsageLine({
+  credential: c,
+  now,
+}: {
+  credential: LlmCredential;
+  now: number;
+}) {
   if (!c.lastUsedAt) {
     return (
       <p className="mt-1 text-xs text-muted-foreground/70">Not used yet</p>
@@ -186,6 +236,8 @@ function UsageLine({ credential: c }: { credential: LlmCredential }) {
           remaining={c.rlRemainingRequests!}
           limit={c.rlLimitRequests!}
           reset={c.rlResetRequests}
+          lastUsedAt={c.lastUsedAt}
+          now={now}
           unit="requests"
           low={c.rlRemainingRequests! / c.rlLimitRequests! < 0.1}
         />
@@ -195,6 +247,8 @@ function UsageLine({ credential: c }: { credential: LlmCredential }) {
           remaining={c.rlRemainingTokens!}
           limit={c.rlLimitTokens!}
           reset={c.rlResetTokens}
+          lastUsedAt={c.lastUsedAt}
+          now={now}
           unit="token"
           low={c.rlRemainingTokens! / c.rlLimitTokens! < 0.1}
         />
@@ -212,6 +266,7 @@ function LlmCredentialsSettings() {
   const [activeCredentialId, setActiveCredentialId] = useState<string | null>(
     null,
   );
+  const [now, setNow] = useState(() => Date.now());
 
   const [createOpen, setCreateOpen] = useState(false);
   const [provider, setProvider] = useState<LlmProvider>("groq");
@@ -271,6 +326,13 @@ function LlmCredentialsSettings() {
       load();
       loadActiveCredential();
     }, 10_000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Drives the live "resets in Xs" countdowns (see UsageStat) — a plain
+  // client-side clock, no network call, so a 1s tick is cheap.
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 1_000);
     return () => clearInterval(interval);
   }, []);
 
@@ -598,7 +660,7 @@ function LlmCredentialsSettings() {
                         )}
                       </button>
                     </div>
-                    <UsageLine credential={c} />
+                    <UsageLine credential={c} now={now} />
                   </div>
 
                   <button type="button" onClick={() => toggleActive(c)}>
