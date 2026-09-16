@@ -110,6 +110,15 @@ describe('ChatService', () => {
     expect(result.sessionId).toBeTruthy();
   });
 
+  it('replies with a fallback message instead of an empty string when the model returns no text and no tool call', async () => {
+    llmChatClient.complete.mockResolvedValue(assistantMessage(''));
+
+    const result = await service.sendMessage({ message: 'Hello' });
+
+    expect(result.reply).not.toBe('');
+    expect(result.reply.length).toBeGreaterThan(0);
+  });
+
   it('sends the caller-supplied transcript plus the new message as history, for a fresh (unbooked) session', async () => {
     llmChatClient.complete.mockResolvedValue(assistantMessage('Got it.'));
 

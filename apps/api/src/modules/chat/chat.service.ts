@@ -32,6 +32,8 @@ const UNAVAILABLE_REPLY =
   "Sorry, I'm having trouble checking availability right now — could you try again in a moment?";
 const LLM_UNAVAILABLE_REPLY =
   "Sorry, I'm having trouble processing that right now — could you try again in a moment?";
+const EMPTY_REPLY_FALLBACK =
+  "Sorry, could you say that again? I didn't catch a response there.";
 const ALL_KEYS_EXHAUSTED_REPLY =
   "I'm getting a lot of requests right now — give me a moment and try again, we'll pick up right where we left off.";
 const NO_CREDENTIALS_REPLY =
@@ -249,7 +251,13 @@ export class ChatService {
         (call) => call.function.name === 'find_available_slots',
       );
       if (!slotsCall) {
-        return { text: message.content ?? '' };
+        // The model occasionally returns a completely empty completion —
+        // no text, no tool call (seen from a free-tier model under load).
+        // An empty reply would otherwise get saved into the transcript
+        // and re-sent by the client on every later turn, permanently
+        // failing ChatTurnDto's validation for that whole conversation —
+        // see chat-turn.dto.ts for the other half of this fix.
+        return { text: message.content || EMPTY_REPLY_FALLBACK };
       }
 
       messages.push({
