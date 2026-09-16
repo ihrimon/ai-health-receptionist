@@ -69,7 +69,7 @@ const MODELS_BY_PROVIDER: Record<LlmProvider, string[]> = {
     "claude-haiku-4-5-20251001",
     "claude-fable-5-1",
   ],
-  gemini: ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"],
+  gemini: ["gemini-3.6-flash", "gemini-3.6-pro", "gemini-flash-latest"],
 };
 const CUSTOM_MODEL = "__custom__";
 

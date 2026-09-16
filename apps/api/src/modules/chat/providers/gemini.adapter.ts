@@ -67,10 +67,16 @@ export class GeminiAdapter implements LlmProviderAdapter {
     // body says so, but the SDK doesn't parse it into a distinct error
     // class the way Groq/Anthropic do, so status code is all we can key
     // off here. 403 covers a key that's valid but lacks access to the
-    // requested model.
+    // requested model, and 404 a model name that's wrong or has been
+    // deprecated/retired by Google — both are per-credential
+    // misconfigurations, not something wrong with the request itself, so
+    // they shouldn't block every other configured credential either.
     return (
       err instanceof GoogleGenerativeAIFetchError &&
-      (err.status === 429 || err.status === 400 || err.status === 403)
+      (err.status === 429 ||
+        err.status === 400 ||
+        err.status === 403 ||
+        err.status === 404)
     );
   }
 
