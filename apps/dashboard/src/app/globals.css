@@ -255,4 +255,16 @@
   html {
     @apply font-sans;
   }
+  /* Every clickable button should show a pointer cursor — browsers don't
+     do this by default for <button> (only <a href> gets it for free),
+     and this project has dozens of one-off buttons (badge toggles,
+     icon buttons, dialog triggers, sidebar items) that would otherwise
+     each need `cursor-pointer` added by hand. One rule here covers all
+     of them, present and future, instead. Disabled ones are excluded —
+     they're already non-interactive via `pointer-events-none` on the
+     shared Button component, this just keeps raw <button disabled>
+     elsewhere consistent with that. */
+  button:not(:disabled) {
+    @apply cursor-pointer;
+  }
 }
