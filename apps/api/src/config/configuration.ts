@@ -46,4 +46,17 @@ export default () => ({
     password: process.env.ADMIN_PASSWORD ?? '',
     sessionSecret: process.env.ADMIN_SESSION_SECRET ?? '',
   },
+
+  // Booking confirmation emails, sent via a plain Gmail account (SMTP
+  // through nodemailer's "gmail" service preset) — no domain/DNS setup
+  // needed, unlike a transactional-email provider. Requires 2-Step
+  // Verification enabled on that Gmail account and an "App Password"
+  // (myaccount.google.com/apppasswords), NOT the account's normal login
+  // password. Left unset, EmailService logs once and no-ops — booking
+  // creation itself never depends on this.
+  email: {
+    gmailUser: process.env.EMAIL_USER ?? '',
+    gmailAppPassword: process.env.EMAIL_APP_PASSWORD ?? '',
+    fromName: process.env.EMAIL_FROM_NAME ?? 'BrainStack AI Receptionist',
+  },
 });

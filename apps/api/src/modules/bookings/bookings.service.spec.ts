@@ -3,18 +3,30 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { QueryFailedError } from 'typeorm';
 import { Booking } from '../../database/entities';
+import { EmailService } from '../email/email.service';
 import { GoogleCalendarService } from '../google-calendar/google-calendar.service';
+import { ProvidersService } from '../providers/providers.service';
 import { BookingsService } from './bookings.service';
 
 describe('BookingsService', () => {
   let service: BookingsService;
   let repository: { create: jest.Mock; save: jest.Mock };
   let googleCalendarService: { syncBookingEvent: jest.Mock };
+  let providersService: { findOne: jest.Mock };
+  let emailService: { sendBookingConfirmation: jest.Mock };
 
   beforeEach(async () => {
     repository = { create: jest.fn(), save: jest.fn() };
     googleCalendarService = {
       syncBookingEvent: jest.fn().mockResolvedValue(undefined),
+    };
+    providersService = {
+      findOne: jest
+        .fn()
+        .mockResolvedValue({ id: 'provider-1', name: 'Dr. Smith' }),
+    };
+    emailService = {
+      sendBookingConfirmation: jest.fn().mockResolvedValue(undefined),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -22,6 +34,8 @@ describe('BookingsService', () => {
         BookingsService,
         { provide: getRepositoryToken(Booking), useValue: repository },
         { provide: GoogleCalendarService, useValue: googleCalendarService },
+        { provide: ProvidersService, useValue: providersService },
+        { provide: EmailService, useValue: emailService },
       ],
     }).compile();
 
@@ -87,6 +101,47 @@ describe('BookingsService', () => {
     repository.save.mockResolvedValue(saved);
     googleCalendarService.syncBookingEvent.mockRejectedValue(
       new Error('unexpected sync failure'),
+    );
+
+    const result = await service.create({} as never);
+
+    expect(result).toEqual(saved);
+  });
+
+  it('sends a confirmation email with the assigned doctor name looked up by providerId', async () => {
+    const saved = { id: 'booking-1', providerId: 'provider-1' };
+    repository.create.mockReturnValue({});
+    repository.save.mockResolvedValue(saved);
+
+    await service.create({} as never);
+
+    expect(providersService.findOne).toHaveBeenCalledWith('provider-1');
+    expect(emailService.sendBookingConfirmation).toHaveBeenCalledWith(
+      saved,
+      'Dr. Smith',
+    );
+  });
+
+  it('sends a confirmation email without a doctor name when no provider is assigned', async () => {
+    const saved = { id: 'booking-1', providerId: undefined };
+    repository.create.mockReturnValue({});
+    repository.save.mockResolvedValue(saved);
+
+    await service.create({} as never);
+
+    expect(providersService.findOne).not.toHaveBeenCalled();
+    expect(emailService.sendBookingConfirmation).toHaveBeenCalledWith(
+      saved,
+      undefined,
+    );
+  });
+
+  it('still returns the saved booking even if sending the confirmation email fails unexpectedly', async () => {
+    const saved = { id: 'booking-1', providerId: undefined };
+    repository.create.mockReturnValue({});
+    repository.save.mockResolvedValue(saved);
+    emailService.sendBookingConfirmation.mockRejectedValue(
+      new Error('smtp failure'),
     );
 
     const result = await service.create({} as never);

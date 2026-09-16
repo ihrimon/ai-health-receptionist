@@ -7,7 +7,9 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { QueryFailedError, Repository } from 'typeorm';
 import { Booking } from '../../database/entities';
+import { EmailService } from '../email/email.service';
 import { GoogleCalendarService } from '../google-calendar/google-calendar.service';
+import { ProvidersService } from '../providers/providers.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
 
@@ -21,6 +23,8 @@ export class BookingsService {
     @InjectRepository(Booking)
     private readonly bookingsRepository: Repository<Booking>,
     private readonly googleCalendarService: GoogleCalendarService,
+    private readonly providersService: ProvidersService,
+    private readonly emailService: EmailService,
   ) {}
 
   async create(dto: CreateBookingDto): Promise<Booking> {
@@ -58,6 +62,20 @@ export class BookingsService {
     } catch (err) {
       this.logger.warn(
         `Unexpected error syncing booking ${saved.id} to Google Calendar: ${(err as Error).message}`,
+      );
+    }
+
+    // Same never-fail-the-booking principle — EmailService itself already
+    // no-ops silently when unconfigured, this only guards against an
+    // actual send failure (bad credentials, provider outage, etc.).
+    try {
+      const providerName = saved.providerId
+        ? (await this.providersService.findOne(saved.providerId)).name
+        : undefined;
+      await this.emailService.sendBookingConfirmation(saved, providerName);
+    } catch (err) {
+      this.logger.warn(
+        `Unexpected error sending booking confirmation email for ${saved.id}: ${(err as Error).message}`,
       );
     }
 
