@@ -8,23 +8,26 @@ import type {
 } from './provider-adapter.types';
 
 /**
- * Shared adapter for Groq and OpenAI — both speak the identical
- * OpenAI chat-completions API shape, and `groq-sdk` is itself just an
- * OpenAI-SDK-compatible client (it exposes the same `baseURL` override
- * OpenAI's own SDK does), so one client class serves both: omit
- * `baseURL` for Groq's own endpoint, pass OpenAI's for OpenAI. No
- * message/tool-call translation needed since our canonical internal
- * shape already IS this format.
+ * Groq only — `groq-sdk` hardcodes Groq's own idiosyncratic resource
+ * path (`/openai/v1/chat/completions`) in every request, which only
+ * produces a correct URL against Groq's actual endpoint
+ * (`https://api.groq.com`, the SDK's default when `apiKey` alone is
+ * passed here). It is NOT a general-purpose "point this at any
+ * OpenAI-compatible host via baseURL" client — an earlier version of
+ * this adapter assumed it was and passed a `baseURL` override for
+ * OpenAI/OpenRouter/UnoRouter too, which silently built a broken
+ * double-nested URL for every one of them (confirmed empirically:
+ * `Invalid URL (POST /v1/openai/v1/chat/completions)`). Those providers
+ * use OpenAiSdkAdapter (the real `openai` package) instead — see its
+ * doc comment.
  */
 export class OpenAiCompatibleAdapter implements LlmProviderAdapter {
-  constructor(private readonly baseURL?: string) {}
-
   async complete({
     apiKey,
     model,
     messages,
   }: AdapterCompleteParams): Promise<AdapterCompleteResult> {
-    const client = new Groq({ apiKey, baseURL: this.baseURL });
+    const client = new Groq({ apiKey });
     const { data: completion, response } = await client.chat.completions
       .create({
         model,
