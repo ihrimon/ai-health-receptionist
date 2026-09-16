@@ -5,7 +5,8 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { LlmCredential } from '../../database/entities';
+import { LlmCredential, LlmProvider } from '../../database/entities';
+import { ProviderRegistry } from '../chat/providers/provider-registry';
 import { CreateLlmCredentialDto } from './dto/create-llm-credential.dto';
 import { UpdateLlmCredentialDto } from './dto/update-llm-credential.dto';
 
@@ -14,6 +15,7 @@ export class LlmCredentialsService {
   constructor(
     @InjectRepository(LlmCredential)
     private readonly repository: Repository<LlmCredential>,
+    private readonly providerRegistry: ProviderRegistry,
   ) {}
 
   findAllOrdered(): Promise<LlmCredential[]> {
@@ -27,6 +29,7 @@ export class LlmCredentialsService {
   }
 
   async create(dto: CreateLlmCredentialDto): Promise<LlmCredential> {
+    await this.validateCredential(dto.provider, dto.apiKey, dto.model);
     const maxOrder = await this.repository
       .createQueryBuilder('c')
       .select('MAX(c.sort_order)', 'max')
@@ -43,8 +46,44 @@ export class LlmCredentialsService {
     dto: UpdateLlmCredentialDto,
   ): Promise<LlmCredential> {
     const credential = await this.findOne(id);
+    // Only re-validate when the key or model actually changed — pure
+    // isActive toggles and reorders shouldn't burn a real API call.
+    if (dto.apiKey !== undefined || dto.model !== undefined) {
+      await this.validateCredential(
+        dto.provider ?? credential.provider,
+        dto.apiKey ?? credential.apiKey,
+        dto.model ?? credential.model,
+      );
+    }
     Object.assign(credential, dto);
     return this.repository.save(credential);
+  }
+
+  /**
+   * Makes one real (minimal) completion call so a bad API key or a
+   * mistyped/deprecated model id ("gemini-2.0-flash" after Google retired
+   * it) surfaces immediately on the Settings page instead of only in
+   * production logs the next time the chat assistant happens to rotate to
+   * this credential.
+   */
+  private async validateCredential(
+    provider: LlmProvider,
+    apiKey: string,
+    model: string,
+  ): Promise<void> {
+    const adapter = this.providerRegistry.get(provider);
+    try {
+      await adapter.complete({
+        apiKey,
+        model,
+        messages: [{ role: 'user', content: 'ping' }],
+      });
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      throw new BadRequestException(
+        `Couldn't verify this ${provider} credential — the provider rejected it: ${detail}`,
+      );
+    }
   }
 
   async remove(id: string): Promise<void> {

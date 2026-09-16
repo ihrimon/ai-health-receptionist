@@ -9,7 +9,7 @@ import { ChatController } from './chat.controller';
 import { ChatService } from './chat.service';
 import { LlmChatClient } from './llm-chat.client';
 import { LlmKeyManager } from './llm-key-manager';
-import { ProviderRegistry } from './providers/provider-registry';
+import { ProviderRegistryModule } from './providers/provider-registry.module';
 
 @Module({
   imports: [
@@ -18,14 +18,9 @@ import { ProviderRegistry } from './providers/provider-registry';
     KnowledgeModule,
     ProvidersModule,
     LlmCredentialsModule,
+    ProviderRegistryModule,
   ],
   controllers: [ChatController],
-  providers: [
-    ChatService,
-    LlmChatClient,
-    LlmKeyManager,
-    ProviderRegistry,
-    ChatToolExecutor,
-  ],
+  providers: [ChatService, LlmChatClient, LlmKeyManager, ChatToolExecutor],
 })
 export class ChatModule {}

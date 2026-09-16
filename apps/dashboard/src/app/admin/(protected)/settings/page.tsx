@@ -6,6 +6,7 @@ import {
   ArrowUp,
   Eye,
   EyeOff,
+  Pencil,
   Plus,
   RefreshCw,
   Trash2,
@@ -44,11 +45,15 @@ import {
   type LlmProvider,
 } from "@/lib/api";
 
-const PROVIDERS: { value: LlmProvider; label: string }[] = [
-  { value: "groq", label: "Groq" },
-  { value: "openai", label: "OpenAI" },
-  { value: "anthropic", label: "Anthropic (Claude)" },
-  { value: "gemini", label: "Google (Gemini)" },
+// Groq and Gemini both offer a genuinely free, ongoing API tier (rate
+// limited, but no card required). OpenAI and Anthropic don't have a
+// standing free tier for API access — labeled here so picking a provider
+// doesn't come as a billing surprise later.
+const PROVIDERS: { value: LlmProvider; label: string; free: boolean }[] = [
+  { value: "groq", label: "Groq", free: true },
+  { value: "gemini", label: "Google (Gemini)", free: true },
+  { value: "openai", label: "OpenAI", free: false },
+  { value: "anthropic", label: "Anthropic (Claude)", free: false },
 ];
 
 // A starting point, not an exhaustive/live list — providers ship new
@@ -181,11 +186,28 @@ function LlmCredentialsSettings() {
   const [model, setModel] = useState(MODELS_BY_PROVIDER.groq[0]);
   const [customModel, setCustomModel] = useState("");
   const [saving, setSaving] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+
+  const [editTarget, setEditTarget] = useState<LlmCredential | null>(null);
+  const [editApiKey, setEditApiKey] = useState("");
+  const [editModel, setEditModel] = useState("");
+  const [editCustomModel, setEditCustomModel] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
   function selectProvider(next: LlmProvider) {
     setProvider(next);
     setModel(MODELS_BY_PROVIDER[next][0]);
     setCustomModel("");
+  }
+
+  function openEdit(c: LlmCredential) {
+    const isKnownModel = MODELS_BY_PROVIDER[c.provider].includes(c.model);
+    setEditTarget(c);
+    setEditApiKey("");
+    setEditModel(isKnownModel ? c.model : CUSTOM_MODEL);
+    setEditCustomModel(isKnownModel ? "" : c.model);
+    setEditError(null);
   }
 
   function load() {
@@ -220,7 +242,7 @@ function LlmCredentialsSettings() {
     if (!resolvedModel) return;
 
     setSaving(true);
-    setError(null);
+    setCreateError(null);
     try {
       await apiFetch("/llm-credentials", {
         method: "POST",
@@ -231,9 +253,35 @@ function LlmCredentialsSettings() {
       setCreateOpen(false);
       load();
     } catch (err) {
-      setError((err as Error).message);
+      setCreateError((err as Error).message);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleSaveEdit(e: FormEvent) {
+    e.preventDefault();
+    if (!editTarget) return;
+    const resolvedModel =
+      editModel === CUSTOM_MODEL ? editCustomModel.trim() : editModel;
+    if (!resolvedModel) return;
+
+    setEditSaving(true);
+    setEditError(null);
+    try {
+      await apiFetch(`/llm-credentials/${editTarget.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          model: resolvedModel,
+          ...(editApiKey ? { apiKey: editApiKey } : {}),
+        }),
+      });
+      setEditTarget(null);
+      load();
+    } catch (err) {
+      setEditError((err as Error).message);
+    } finally {
+      setEditSaving(false);
     }
   }
 
@@ -313,7 +361,13 @@ function LlmCredentialsSettings() {
               >
                 <RefreshCw />
               </Button>
-              <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+              <Dialog
+                open={createOpen}
+                onOpenChange={(open) => {
+                  setCreateOpen(open);
+                  if (open) setCreateError(null);
+                }}
+              >
                 <DialogTrigger
                   render={
                     <Button>
@@ -339,10 +393,26 @@ function LlmCredentialsSettings() {
                           {PROVIDERS.map((p) => (
                             <SelectItem key={p.value} value={p.value}>
                               {p.label}
+                              <span
+                                className={
+                                  p.free
+                                    ? "text-xs text-green-600 dark:text-green-400"
+                                    : "text-xs text-muted-foreground"
+                                }
+                              >
+                                {p.free ? "Free" : "Paid"}
+                              </span>
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
+                      {!PROVIDERS.find((p) => p.value === provider)?.free && (
+                        <p className="text-xs text-muted-foreground">
+                          This provider has no ongoing free API tier — a
+                          billing-enabled key is required. Groq and Gemini
+                          are free.
+                        </p>
+                      )}
                     </div>
                     <div className="grid gap-1.5">
                       <Label>API key</Label>
@@ -384,9 +454,12 @@ function LlmCredentialsSettings() {
                         />
                       )}
                     </div>
+                    {createError && (
+                      <p className="text-sm text-destructive">{createError}</p>
+                    )}
                     <DialogFooter>
                       <Button type="submit" disabled={saving}>
-                        {saving ? "Saving…" : "Add key"}
+                        {saving ? "Verifying…" : "Add key"}
                       </Button>
                     </DialogFooter>
                   </form>
@@ -477,6 +550,16 @@ function LlmCredentialsSettings() {
                   <Button
                     variant="ghost"
                     size="icon-sm"
+                    aria-label="Edit key"
+                    disabled={busyId === c.id}
+                    onClick={() => openEdit(c)}
+                  >
+                    <Pencil />
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
                     aria-label="Delete key"
                     disabled={busyId === c.id}
                     onClick={() => setDeleteTarget(c)}
@@ -490,6 +573,78 @@ function LlmCredentialsSettings() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog
+        open={!!editTarget}
+        onOpenChange={(open) => {
+          if (!open) setEditTarget(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit API key</DialogTitle>
+          </DialogHeader>
+          {editTarget && (
+            <form onSubmit={handleSaveEdit} className="grid gap-3">
+              <div className="grid gap-1.5">
+                <Label>Provider</Label>
+                <p className="text-sm text-muted-foreground">
+                  {PROVIDERS.find((p) => p.value === editTarget.provider)
+                    ?.label ?? editTarget.provider}{" "}
+                  — to switch providers, delete this key and add a new one.
+                </p>
+              </div>
+              <div className="grid gap-1.5">
+                <Label>API key (optional)</Label>
+                <Input
+                  type="password"
+                  autoComplete="off"
+                  value={editApiKey}
+                  onChange={(e) => setEditApiKey(e.target.value)}
+                  placeholder="Leave blank to keep the current key"
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label>Model</Label>
+                <Select
+                  value={editModel}
+                  onValueChange={(v) => setEditModel(v ?? CUSTOM_MODEL)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MODELS_BY_PROVIDER[editTarget.provider].map((m) => (
+                      <SelectItem key={m} value={m}>
+                        {m}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value={CUSTOM_MODEL}>Custom…</SelectItem>
+                  </SelectContent>
+                </Select>
+                {editModel === CUSTOM_MODEL && (
+                  <Input
+                    required
+                    autoFocus
+                    value={editCustomModel}
+                    onChange={(e) => setEditCustomModel(e.target.value)}
+                    placeholder="Exact model id"
+                    className="mt-1.5"
+                  />
+                )}
+              </div>
+              {editError && (
+                <p className="text-sm text-destructive">{editError}</p>
+              )}
+              <DialogFooter>
+                <Button type="submit" disabled={editSaving}>
+                  {editSaving ? "Verifying…" : "Save changes"}
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={!!deleteTarget}
