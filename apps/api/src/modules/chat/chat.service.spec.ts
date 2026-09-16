@@ -443,6 +443,27 @@ describe('ChatService', () => {
     expect(conversationsService.create).not.toHaveBeenCalled();
   });
 
+  it('replies gracefully (not a crash) when the model invents a preferredTime instead of reusing a real slot', async () => {
+    // A malformed time (e.g. not 24-hour HH:MM) used to sail through as a
+    // plain non-empty string, reach combineDateAndDhakaTime's Date math,
+    // and crash with an uncaught RangeError — CreateBookingDto now
+    // rejects it at validation instead, same as any other incomplete
+    // record_booking call.
+    llmChatClient.complete.mockResolvedValue(
+      toolCallMessage('record_booking', {
+        ...validBookingInput,
+        preferredTime: '2:30 PM',
+      }),
+    );
+
+    const result = await service.sendMessage({ message: 'Yes, confirm it' });
+
+    expect(bookingsService.create).not.toHaveBeenCalled();
+    expect(result.bookingCreated).toBe(false);
+    expect(result.reply).toMatch(/couldn't quite save that/i);
+    expect(conversationsService.create).not.toHaveBeenCalled();
+  });
+
   describe('rateConversation', () => {
     it('rates the conversation matching the given sessionId', async () => {
       conversationsService.findByCallSid.mockResolvedValue({ id: 'conv-1' });

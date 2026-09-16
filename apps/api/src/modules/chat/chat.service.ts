@@ -144,6 +144,17 @@ export class ChatService {
           } else if (err instanceof ConflictException) {
             replyText =
               'Sorry, that time slot was just booked by someone else — could you pick another time?';
+          } else if (err instanceof RangeError) {
+            // Belt-and-suspenders alongside CreateBookingDto's preferredTime
+            // format check: any other invalid-date edge case that still
+            // reaches Date arithmetic here (combineDateAndDhakaTime,
+            // .toISOString()) should fail this turn gracefully too, not
+            // crash the request with an uncaught 500.
+            this.logger.warn(
+              `record_booking produced an invalid date/time (${bookingDto.preferredDate} ${bookingDto.preferredTime}): ${err.message}`,
+            );
+            replyText =
+              "Sorry, that date or time doesn't look right — could you confirm it again?";
           } else {
             throw err;
           }
