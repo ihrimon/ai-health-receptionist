@@ -104,7 +104,7 @@ export class GeminiAdapter implements LlmProviderAdapter {
   }
 }
 
-function toGeminiContents(messages: ChatCompletionMessageParam[]): {
+export function toGeminiContents(messages: ChatCompletionMessageParam[]): {
   systemInstruction: string;
   contents: Content[];
 } {
@@ -163,7 +163,15 @@ function toGeminiContents(messages: ChatCompletionMessageParam[]): {
     if (message.role === 'tool') {
       const name = nameByToolCallId.get(message.tool_call_id) ?? 'unknown';
       contents.push({
-        role: 'function',
+        // Not 'function' — the @google/generative-ai SDK's own type still
+        // lists it as valid (POSSIBLE_ROLES), but the live API now
+        // rejects it for gemini-3.6-flash with "Role 'function' is not
+        // supported" (confirmed in production logs), meaning the actual
+        // backend has moved past what this SDK's types describe. 'user'
+        // is what the error's own accepted-roles list includes, and is
+        // the conventional way to carry a function result back to the
+        // model (as new information for the "user side" of the turn).
+        role: 'user',
         parts: [
           {
             functionResponse: {
